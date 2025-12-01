@@ -23,12 +23,14 @@ type Group struct {
 type Renderer interface {
 	Draw(screen *ebiten.Image, game *Game)
 	Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int)
+	GetGridPosition(x, y int) (row, col int, onBoard bool)
 }
 
 // Represents the struct for the game itself
 type Game struct {
 	State    GameStates
 	Renderer Renderer
+	Board    *Board
 }
 
 // Different states of the game
@@ -51,6 +53,7 @@ const BoardSize = 9
 // Initialize the game
 func (g *Game) Init() {
 	g.State = GameStateIntro
+	g.Board = NewBoard(BoardSize)
 }
 
 // To pass to the next state when the user clicks or presses space
@@ -58,6 +61,16 @@ func (g *Game) Update() error {
 	if g.State == GameStateIntro {
 		if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.State = GameStateGame
+		}
+	} else if g.State == GameStateGame {
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			x, y := ebiten.CursorPosition()
+			if g.Renderer != nil {
+				row, col, onBoard := g.Renderer.GetGridPosition(x, y)
+				if onBoard {
+					g.Board.PlaceStone(row, col)
+				}
+			}
 		}
 	}
 	return nil

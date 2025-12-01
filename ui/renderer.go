@@ -23,16 +23,34 @@ var (
 	lineColor  = color.RGBA{0, 0, 0, 255}
 )
 
-type Renderer struct{}
+type Renderer struct {
+	BlackStone *ebiten.Image
+	WhiteStone *ebiten.Image
+}
+
+func NewRenderer() *Renderer {
+	black, _, err := ebitenutil.NewImageFromFile("images/black-stone.png")
+	if err != nil {
+		panic(err)
+	}
+	white, _, err := ebitenutil.NewImageFromFile("images/white-stone.png")
+	if err != nil {
+		panic(err)
+	}
+	return &Renderer{
+		BlackStone: black,
+		WhiteStone: white,
+	}
+}
 
 func (r *Renderer) Draw(screen *ebiten.Image, g *game.Game) {
 	switch g.State {
 	case game.GameStateIntro:
 		r.drawIntro(screen)
 	case game.GameStateGame:
-		r.drawBoard(screen)
+		r.drawBoard(screen, g)
 	case game.GameStateEnd:
-		r.drawBoard(screen)
+		r.drawBoard(screen, g)
 	}
 }
 
@@ -53,7 +71,7 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, introSub, width/2-100, height/2+20)
 }
 
-func (r *Renderer) drawBoard(screen *ebiten.Image) {
+func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
 	// Fill background with board color (light beige/wood)
 	screen.Fill(boardColor)
 	// Calculate board dimensions
@@ -86,4 +104,80 @@ func (r *Renderer) drawBoard(screen *ebiten.Image) {
 		y := startY + float32(point[1]*cellSize)
 		vector.FillCircle(screen, x, y, starRadius, lineColor, false)
 	}
+
+	// Draw stones
+	if g.Board != nil {
+		for i := 0; i < game.BoardSize; i++ {
+			for j := 0; j < game.BoardSize; j++ {
+				stone := g.Board.Grid[i][j]
+				if stone != nil {
+					x := float64(startX) + float64(i*cellSize)
+					y := float64(startY) + float64(j*cellSize)
+
+					var img *ebiten.Image
+					if stone.Player == game.PlayerBlack {
+						img = r.BlackStone
+					} else {
+						img = r.WhiteStone
+					}
+
+					if img != nil {
+						op := &ebiten.DrawImageOptions{}
+						// Center the image
+						size := img.Bounds().Size()
+						width, height := size.X, size.Y
+						// Scale to fit cellSize (slightly smaller)
+						scale := float64(cellSize) * 0.9 / float64(width)
+						op.GeoM.Scale(scale, scale)
+						// Center the image on the corss section
+						op.GeoM.Translate(x-float64(width)*scale/2, y-float64(height)*scale/2)
+
+						screen.DrawImage(img, op)
+					} else {
+						// Fallback if image load failed (shouldn't happen with NewRenderer panic)
+						radius := float32(cellSize) / 2 * 0.9
+						var c color.Color
+						if stone.Player == game.PlayerBlack {
+							c = color.Black
+						} else {
+							c = color.White
+						}
+						vector.FillCircle(screen, float32(x), float32(y), radius, c, true)
+					}
+				}
+			}
+		}
+	}
+}
+
+func (r *Renderer) GetGridPosition(x, y int) (row, col int, onBoard bool) {
+	// Calculate board dimensions
+	startX := boardMargin
+	startY := boardMargin
+
+	// Check if click is within reasonable bounds of the board
+	// We allow some margin around the board for clicking
+	boardWidth := (game.BoardSize - 1) * cellSize
+	boardHeight := (game.BoardSize - 1) * cellSize
+
+	if x < startX-cellSize/2 || x > startX+boardWidth+cellSize/2 ||
+		y < startY-cellSize/2 || y > startY+boardHeight+cellSize/2 {
+		return 0, 0, false
+	}
+
+	// Calculate nearest intersection
+	// (x - startX) / cellSize
+	// We want to round to the nearest integer
+
+	fx := float64(x - startX)
+	fy := float64(y - startY)
+
+	ix := int((fx + float64(cellSize)/2) / float64(cellSize))
+	iy := int((fy + float64(cellSize)/2) / float64(cellSize))
+
+	if ix >= 0 && ix < game.BoardSize && iy >= 0 && iy < game.BoardSize {
+		return ix, iy, true
+	}
+
+	return 0, 0, false
 }

@@ -44,7 +44,7 @@ func main() {
 	g := &game.Game{}
 	g.Init()
 
-	renderer := &ui.Renderer{}
+	renderer := ui.NewRenderer()
 	g.Renderer = renderer
 
 	// Set the window size and title
