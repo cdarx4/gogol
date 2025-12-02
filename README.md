@@ -21,8 +21,8 @@ In this project, there are multiple packages that each serve a distinct purpose 
 
 In the game package, we've split the logic into multiple files :
 
-- board : this file manages the board and how the stones are placed on it. This means that it handles the placement of the stones, the groups, the liberties but doesn't directly remove stones from the board if some are captured.
-- game : this file manages the game logic itself. It checks the liberties, the captures, the end of the game and logs the current state of the game in the console.
+- board : this file manages the board and how the stones are placed on it. This means that it handles the placement of the stones, the groups, the liberties AND handles the group deletion when a group has no liberties left.
+- game : this file is a sort of controller that makes the link between the board and the renderer. It is responsible for updating the board and the renderer when a stone is placed. It doesn't handle the stones, groups, liberties, ...
 - types : this files defines the types used in the game like the stones, the groups, the player, ... (the board type is defined in the board.go file)
 
 ## Renderer
