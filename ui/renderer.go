@@ -34,11 +34,13 @@ import (
 )
 
 const (
-	cellSize    = 60
-	boardMargin = 50
-	lineWidth   = 2
-	introTitle  = "GoGol"
-	introSub    = "Press SPACE or Click to Start"
+	cellSize     = 60
+	boardMargin  = 50
+	lineWidth    = 2
+	introTitle   = "GoGol"
+	PVPText      = "Press SPACE or Click to Start"
+	PVEText      = "Press B to Start"
+	ThinkingText = "Thinking..."
 )
 
 var (
@@ -90,8 +92,9 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 	// Draw title "GoGol"
 	size := screen.Bounds().Size()
 	width, height := size.X, size.Y
-	ebitenutil.DebugPrintAt(screen, introTitle, width/2-30, height/2-20)
-	ebitenutil.DebugPrintAt(screen, introSub, width/2-100, height/2+20)
+	ebitenutil.DebugPrintAt(screen, introTitle, width/2-30, height/2-40)
+	ebitenutil.DebugPrintAt(screen, PVPText, width/2-100, height/2)
+	ebitenutil.DebugPrintAt(screen, PVEText, width/2-100, height/2+20)
 }
 
 func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
@@ -170,6 +173,12 @@ func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
 				}
 			}
 		}
+	}
+
+	if g.IsBotThinking {
+		size := screen.Bounds().Size()
+		width, height := size.X, size.Y
+		ebitenutil.DebugPrintAt(screen, ThinkingText, width/2-30, height-20)
 	}
 }
 

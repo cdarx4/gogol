@@ -23,6 +23,8 @@
 package game
 
 import (
+	"fmt"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
@@ -31,26 +33,78 @@ import (
 func (g *Game) Init() {
 	g.State = GameStateIntro
 	g.Board = NewBoard(BoardSize)
+	g.Mode = GameModePvP
+	g.BotMoveChan = make(chan BotMoveResult)
 }
 
 // To pass to the next state when the user clicks or presses space
 func (g *Game) Update() error {
 	if g.State == GameStateIntro {
-		if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+			g.Mode = GameModePvP
+			g.State = GameStateGame
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyB) {
+			g.Mode = GameModePvE
+			g.State = GameStateGame
+		} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			g.Mode = GameModePvP
 			g.State = GameStateGame
 		}
 	} else if g.State == GameStateGame {
+		// Check for bot result
+		select {
+		case result := <-g.BotMoveChan:
+			g.IsBotThinking = false
+			if result.Err == nil {
+				if g.Board.PlaceStone(result.X, result.Y) {
+					g.PrintGame()
+				}
+			} else {
+				fmt.Println("Bot error:", result.Err)
+			}
+		default:
+			// No result yet
+		}
+
+		if g.IsBotThinking {
+			return nil // Don't allow other inputs while thinking
+		}
+
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			x, y := ebiten.CursorPosition()
 			if g.Renderer != nil {
 				row, col, onBoard := g.Renderer.GetGridPosition(x, y)
 				if onBoard {
-					g.Board.PlaceStone(row, col)
+					// In PvE, only allow player (Black) to move manually
+					// In PvP, both can move manually (turn logic handled by Board)
+					if g.Mode == GameModePvE && g.Board.currentPlayer != PlayerBlack {
+						// It's bot's turn, ignore click
+					} else {
+						if g.Board.PlaceStone(row, col) {
+							g.PrintGame()
+						}
+					}
 				}
+
 			}
+		}
+
+		// Bot turn (White) - Only in PvE mode
+		if g.Mode == GameModePvE && g.Board.currentPlayer == PlayerWhite && !g.IsBotThinking {
+			g.IsBotThinking = true
+			go func() {
+				x, y, err := GetNextMove(g.Board, PlayerWhite)
+				g.BotMoveChan <- BotMoveResult{X: x, Y: y, Err: err}
+			}()
 		}
 	}
 	return nil
+}
+
+// Print the current game state
+func (g *Game) PrintGame() {
+	fmt.Println("Current Game State:")
+	fmt.Println(g.Board.String())
 }
 
 // Draw the game

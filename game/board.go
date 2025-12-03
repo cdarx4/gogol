@@ -274,3 +274,22 @@ func (b *Board) RemoveGroup(g *Group) {
 		b.UpdateLiberties(ng)
 	}
 }
+
+// Returns the string representation of the board
+func (b *Board) String() string {
+	boardState := ""
+	for y := 0; y < b.Size; y++ {
+		for x := 0; x < b.Size; x++ {
+			stone := b.Grid[x][y]
+			if stone == nil {
+				boardState += ". "
+			} else if stone.Player == PlayerBlack {
+				boardState += "B "
+			} else {
+				boardState += "W "
+			}
+		}
+		boardState += "\n"
+	}
+	return boardState
+}

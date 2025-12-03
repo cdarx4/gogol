@@ -27,6 +27,7 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/joho/godotenv"
 
 	"heia2526/gogol/game"
 	"heia2526/gogol/ui"
@@ -37,10 +38,15 @@ const (
 	WindowWidth  = 600
 	WindowHeight = 600
 	WindowTitle  = "GoGol - 9x9 Board"
+	EnvFileError = "No .env file found"
 )
 
 // Main entry point of the program
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println(EnvFileError)
+	}
+
 	g := &game.Game{}
 	g.Init()
 

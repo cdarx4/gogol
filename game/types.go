@@ -29,6 +29,14 @@ import (
 // Represents the different states of the game
 type GameStates string
 
+// GameMode represents the mode of the game (PvP or PvE)
+type GameMode int
+
+const (
+	GameModePvP GameMode = iota
+	GameModePvE
+)
+
 // Represents the different players
 type Player int
 
@@ -57,9 +65,17 @@ type Renderer interface {
 
 // Represents the struct for the game itself
 type Game struct {
-	State    GameStates
-	Renderer Renderer
-	Board    *Board
+	State         GameStates
+	Renderer      Renderer
+	Board         *Board
+	Mode          GameMode
+	IsBotThinking bool
+	BotMoveChan   chan BotMoveResult
+}
+
+type BotMoveResult struct {
+	X, Y int
+	Err  error
 }
 
 // Different states of the game
