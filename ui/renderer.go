@@ -38,8 +38,8 @@ const (
 	boardMargin  = 50
 	lineWidth    = 2
 	introTitle   = "GoGol"
-	PVPText      = "Press SPACE or Click to Start"
-	PVEText      = "Press B to Start"
+	PVPText      = "Press P or Space to start a PVP game"
+	PVEText      = "Press B to start a PVE game"
 	ThinkingText = "Thinking..."
 )
 

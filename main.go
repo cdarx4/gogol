@@ -24,7 +24,10 @@
 package main
 
 import (
+	_ "embed"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/joho/godotenv"
@@ -32,6 +35,9 @@ import (
 	"heia2526/gogol/game"
 	"heia2526/gogol/ui"
 )
+
+//go:embed .env
+var envFile string
 
 // Define the window size and title
 const (
@@ -43,8 +49,26 @@ const (
 
 // Main entry point of the program
 func main() {
-	if err := godotenv.Load(); err != nil {
+	// Parse the embedded .env file
+	envMap, err := godotenv.Unmarshal(envFile)
+	if err != nil {
 		log.Println(EnvFileError)
+	}
+
+	// Set environment variables
+	for key, value := range envMap {
+		os.Setenv(key, value)
+	}
+
+	// Also try loading from file for local development if embedded is empty (optional, but good for dev)
+	// However, since we embed it, it should be there.
+	// If we want to allow overriding with a local file, we could call Load() afterwards.
+	// But for WASM, Load() fails. So let's stick to the embedded one or try Load and ignore error.
+	if err := godotenv.Load(); err != nil {
+		// Ignore error if file not found (likely in WASM or if relying on embed)
+		if !strings.Contains(err.Error(), "no such file") {
+			// log.Println("Error loading .env file:", err)
+		}
 	}
 
 	g := &game.Game{}
