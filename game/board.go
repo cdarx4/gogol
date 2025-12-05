@@ -103,7 +103,10 @@ func (b *Board) getNeighbors(x, y int) []*Stone {
 // Given a stone and its neighbors,
 // merges the groups if necessary
 func (b *Board) handleGroups(stone *Stone, neighbors []*Stone) {
-	// Find unique groups to merge
+	// Find groups to merge
+	// These for loops check all the neighbors of the
+	// stone and add the group to the map if it's not already there
+	// TODO optimize this
 	groupsToMerge := make(map[int]*Group)
 	for _, n := range neighbors {
 		for _, g := range b.Groups {
@@ -114,6 +117,8 @@ func (b *Board) handleGroups(stone *Stone, neighbors []*Stone) {
 		}
 	}
 
+	// If there's no group to merge
+	// Create a new group with only the stone
 	if len(groupsToMerge) == 0 {
 		// New Group
 		newGroup := &Group{
@@ -134,9 +139,11 @@ func (b *Board) handleGroups(stone *Stone, neighbors []*Stone) {
 			break
 		}
 
+		// Add the stone to the target group to merge them
 		targetGroup.Stones = append(targetGroup.Stones, stone)
 		stone.GroupId = targetGroup.ID
 
+		// Move all the stones to the target group
 		for _, g := range groupsToMerge {
 			if g != targetGroup {
 				// Move stones to targetGroup
