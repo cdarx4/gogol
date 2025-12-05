@@ -32,8 +32,8 @@ type Board struct {
 	Size          int
 	Grid          [][]*Stone
 	Groups        []*Group
-	nextGroupId   int
-	currentPlayer Player
+	NextGroupId   int
+	CurrentPlayer Player
 }
 
 // Creates a new board for the game with the
@@ -46,7 +46,8 @@ func NewBoard(size int) *Board {
 	return &Board{
 		Size:          size,
 		Grid:          grid,
-		currentPlayer: PlayerBlack,
+		NextGroupId:   0,
+		CurrentPlayer: PlayerBlack,
 	}
 }
 
@@ -65,7 +66,7 @@ func (b *Board) PlaceStone(x, y int) bool {
 	stone := &Stone{
 		X:      x,
 		Y:      y,
-		Player: b.currentPlayer,
+		Player: b.CurrentPlayer,
 	}
 
 	b.Grid[x][y] = stone
@@ -75,10 +76,10 @@ func (b *Board) PlaceStone(x, y int) bool {
 	b.handleGroups(stone, neighbors)
 
 	// Update liberties
-	b.updateAffectedLiberties(stone, x, y)
+	b.UpdateAffectedLiberties(stone, x, y)
 
 	// Switch turns
-	b.switchTurn()
+	b.SwitchTurn()
 
 	return true
 }
@@ -92,7 +93,7 @@ func (b *Board) getNeighbors(x, y int) []*Stone {
 		nx, ny := x+d.dx, y+d.dy
 		if nx >= 0 && nx < b.Size && ny >= 0 && ny < b.Size {
 			neighbor := b.Grid[nx][ny]
-			if neighbor != nil && neighbor.Player == b.currentPlayer {
+			if neighbor != nil && neighbor.Player == b.CurrentPlayer {
 				neighbors = append(neighbors, neighbor)
 			}
 		}
@@ -122,12 +123,12 @@ func (b *Board) handleGroups(stone *Stone, neighbors []*Stone) {
 	if len(groupsToMerge) == 0 {
 		// New Group
 		newGroup := &Group{
-			ID:        b.nextGroupId,
-			Player:    b.currentPlayer,
+			ID:        b.NextGroupId,
+			Player:    b.CurrentPlayer,
 			Stones:    []*Stone{stone},
 			Liberties: 0,
 		}
-		b.nextGroupId++
+		b.NextGroupId++
 		b.Groups = append(b.Groups, newGroup)
 		stone.GroupId = newGroup.ID
 	} else {
@@ -200,9 +201,9 @@ func (b *Board) UpdateLiberties(g *Group) {
 
 // Given a stone and its coordinates,
 // updates the liberties of the group
-func (b *Board) updateAffectedLiberties(stone *Stone, x, y int) {
+func (b *Board) UpdateAffectedLiberties(stone *Stone, x, y int) {
 	// Update liberties for the current group
-	currentGroup := b.getGroup(stone.GroupId)
+	currentGroup := b.GetGroup(stone.GroupId)
 	if currentGroup != nil {
 		b.UpdateLiberties(currentGroup)
 	}
@@ -213,8 +214,8 @@ func (b *Board) updateAffectedLiberties(stone *Stone, x, y int) {
 		nx, ny := x+d.dx, y+d.dy
 		if nx >= 0 && nx < b.Size && ny >= 0 && ny < b.Size {
 			neighbor := b.Grid[nx][ny]
-			if neighbor != nil && neighbor.Player != b.currentPlayer {
-				opponentGroup := b.getGroup(neighbor.GroupId)
+			if neighbor != nil && neighbor.Player != b.CurrentPlayer {
+				opponentGroup := b.GetGroup(neighbor.GroupId)
 				if opponentGroup != nil {
 					b.UpdateLiberties(opponentGroup)
 				}
@@ -224,17 +225,17 @@ func (b *Board) updateAffectedLiberties(stone *Stone, x, y int) {
 }
 
 // Switches the turn
-func (b *Board) switchTurn() {
-	if b.currentPlayer == PlayerBlack {
-		b.currentPlayer = PlayerWhite
+func (b *Board) SwitchTurn() {
+	if b.CurrentPlayer == PlayerBlack {
+		b.CurrentPlayer = PlayerWhite
 	} else {
-		b.currentPlayer = PlayerBlack
+		b.CurrentPlayer = PlayerBlack
 	}
 }
 
 // Given a group id,
 // returns the group
-func (b *Board) getGroup(id int) *Group {
+func (b *Board) GetGroup(id int) *Group {
 	for _, g := range b.Groups {
 		if g.ID == id {
 			return g
@@ -256,7 +257,7 @@ func (b *Board) RemoveGroup(g *Group) {
 			if nx >= 0 && nx < b.Size && ny >= 0 && ny < b.Size {
 				neighbor := b.Grid[nx][ny]
 				if neighbor != nil && neighbor.GroupId != g.ID {
-					ng := b.getGroup(neighbor.GroupId)
+					ng := b.GetGroup(neighbor.GroupId)
 					if ng != nil {
 						neighborsToUpdate[ng.ID] = ng
 					}
