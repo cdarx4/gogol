@@ -298,7 +298,7 @@ func (r *Renderer) drawGameOver(screen *ebiten.Image, g *game.Game) {
 	width, height := size.X, size.Y
 
 	// Draw a semi-transparent background
-	vector.DrawFilledRect(screen, float32(width/2-200), float32(height/2-50), 400, 100, color.RGBA{0, 0, 0, 180}, false)
+	vector.FillRect(screen, float32(width/2-200), float32(height/2-50), 400, 100, color.RGBA{0, 0, 0, 180}, false)
 
 	ebitenutil.DebugPrintAt(screen, textStr, width/2-100, height/2-20)
 }

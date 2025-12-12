@@ -69,7 +69,7 @@ type Board struct {
 	Grid          [][]*Stone
 	Groups        []*Group
 	nextGroupId   int
-	currentPlayer Player
+	CurrentPlayer Player // Exported for AI evaluation
 	PassCount     int
 }
 
@@ -80,6 +80,11 @@ type Renderer interface {
 	GetGridPosition(x, y int) (row, col int, onBoard bool)
 }
 
+// AIPlayer interface for AI players
+type AIPlayer interface {
+	NextMove(b *Board, p Player) (x, y int, err error)
+}
+
 // Represents the struct for the game itself
 type Game struct {
 	State         GameStates
@@ -88,6 +93,7 @@ type Game struct {
 	Mode          GameMode
 	IsBotThinking bool
 	BotMoveChan   chan BotMoveResult
+	Bot           AIPlayer
 }
 
 type BotMoveResult struct {
