@@ -1,0 +1,115 @@
+name: WASM CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: "[⚙️] Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "[📦] Setup Go"
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: "[🛠️] Install Linux dependencies"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+
+      - name: "[🧹] Run golangci-lint"
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "[⚙️] Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "[📦] Setup Go"
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: "[🛠️] Install Linux dependencies"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev xvfb
+
+      - name: "[🧪] Run tests"
+        run: xvfb-run -a go test ./game/... -v -coverprofile=coverage.out
+
+  build-wasm:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: "[⚙️] Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "[📦] Setup Go"
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: "[🔨] Build WASM"
+        run: |
+          GOOS=js GOARCH=wasm go build -o gogol.wasm main.go
+
+      - name: "[📦] Prepare deployment artifacts"
+        run: |
+          mkdir -p deploy
+          cp gogol.wasm deploy/
+          cp wasm_exec.js deploy/
+          cp index.html deploy/
+          cp -r images deploy/ 2>/dev/null || true
+
+      - name: "[💾] Upload artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-build
+          path: deploy/
+          retention-days: 1
+
+  deploy:
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: "[⚙️] Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "[📥] Download artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-build
+          path: deploy/
+
+      - name: "[🚀] Setup Pages"
+        uses: actions/configure-pages@v4
+
+      - name: "[📤] Upload to GitHub Pages"
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: deploy/
+
+      - name: "[🌐] Deploy to GitHub Pages"
+        id: deployment
+        uses: actions/deploy-pages@v4
