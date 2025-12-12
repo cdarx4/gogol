@@ -67,7 +67,7 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		// Ignore error if file not found (likely in WASM or if relying on embed)
 		if !strings.Contains(err.Error(), "no such file") {
-			// log.Println("Error loading .env file:", err)
+			log.Println("Error loading .env file:", err)
 		}
 	}
 
