@@ -40,20 +40,36 @@ const (
 // Represents the different players
 type Player int
 
-// Represents a stone
+const (
+	PlayerBlack Player = iota
+	PlayerWhite
+)
+
+const StartingPlayer = PlayerBlack
+const BoardSize = 9
+
+// Represents a stone on the board
 type Stone struct {
-	X, Y    int
-	Player  Player
-	GroupId int
+	X, Y   int
+	Player Player
+	Group  *Group
 }
 
-// For the stone groups
-// TODO add the liberties
+// Represents a connected group of stones
 type Group struct {
 	ID        int
 	Player    Player
 	Stones    []*Stone
-	Liberties int
+	Liberties map[[2]int]struct{}
+}
+
+// Represents the board
+type Board struct {
+	Size          int
+	Grid          [][]*Stone
+	Groups        []*Group
+	nextGroupId   int
+	currentPlayer Player
 }
 
 // Renderer interface for the game
@@ -78,28 +94,19 @@ type BotMoveResult struct {
 	Err  error
 }
 
-// Different states of the game
-// TODO add a configuration state later
 const (
 	GameStateIntro GameStates = "intro"
 	GameStateGame  GameStates = "game"
 	GameStateEnd   GameStates = "end"
 )
 
-// Different players White/Black
-const (
-	PlayerBlack Player = iota
-	PlayerWhite
-)
+var AdjacentDirections = []struct{ dx, dy int }{
+	{-1, 0}, {1, 0}, {0, -1}, {0, 1},
+}
 
-// Size of the board 9x9
-const BoardSize = 9
-
-func (p Player) String() string {
+func (p Player) Opponent() Player {
 	if p == PlayerBlack {
-		return "Black"
-	} else if p == PlayerWhite {
-		return "White"
+		return PlayerWhite
 	}
-	return "Unknown"
+	return PlayerBlack
 }
