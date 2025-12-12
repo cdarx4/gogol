@@ -89,6 +89,12 @@ func (g *Game) Update() error {
 			}
 		}
 
+		// Check for pass
+		if inpututil.IsKeyJustPressed(ebiten.KeyS) {
+			g.Board.Pass()
+			g.PrintGame()
+		}
+
 		// Bot turn (White) - Only in PvE mode
 		if g.Mode == GameModePvE && g.Board.currentPlayer == PlayerWhite && !g.IsBotThinking {
 			g.IsBotThinking = true
@@ -96,6 +102,16 @@ func (g *Game) Update() error {
 				x, y, err := GetNextMove(g.Board, PlayerWhite)
 				g.BotMoveChan <- BotMoveResult{X: x, Y: y, Err: err}
 			}()
+		}
+
+		if g.Board.PassCount == 2 {
+			g.State = GameStateEnd
+		}
+
+	} else if g.State == GameStateEnd {
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+			g.State = GameStateIntro
+			g.Init()
 		}
 	}
 	return nil

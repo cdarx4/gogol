@@ -210,6 +210,9 @@ func (b *Board) adjacentGroups(x, y int) []*Group {
 // Places a stone for the current player at (x, y) if legal, enacts all necessary group/capture logic, and advances the turn.
 // Returns true if the move was successful.
 func (b *Board) PlaceStone(x, y int) bool {
+	// Reset pass count
+	b.PassCount = 0
+
 	// 1. Basic legality checks: must be on board, location must be empty.
 	if !b.isInBounds(x, y) || b.isOccupied(x, y) {
 		return false
@@ -262,6 +265,42 @@ func (b *Board) PlaceStone(x, y int) bool {
 // Switches current player to their opponent.
 func (b *Board) switchTurn() {
 	b.currentPlayer = b.currentPlayer.Opponent()
+}
+
+// Pass allows the current player to skip their turn.
+func (b *Board) Pass() {
+	b.switchTurn()
+	b.PassCount++
+}
+
+// GetStoneCount returns the number of stones for each player
+func (b *Board) GetStoneCount() (blackCount, whiteCount int) {
+	for x := 0; x < b.Size; x++ {
+		for y := 0; y < b.Size; y++ {
+			if b.Grid[x][y] != nil {
+				if b.Grid[x][y].Player == PlayerBlack {
+					blackCount++
+				} else {
+					whiteCount++
+				}
+			}
+		}
+	}
+	return
+}
+
+// GetWinner returns the winner based on stone count
+// Returns nil if draw
+func (b *Board) GetWinner() (winner *Player, isDraw bool) {
+	black, white := b.GetStoneCount()
+	if black > white {
+		p := PlayerBlack
+		return &p, false
+	} else if white > black {
+		p := PlayerWhite
+		return &p, false
+	}
+	return nil, true
 }
 
 // ---------- Debug ----------

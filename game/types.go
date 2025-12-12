@@ -70,6 +70,7 @@ type Board struct {
 	Groups        []*Group
 	nextGroupId   int
 	currentPlayer Player
+	PassCount     int
 }
 
 // Renderer interface for the game
