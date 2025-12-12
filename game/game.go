@@ -77,7 +77,7 @@ func (g *Game) Update() error {
 				if onBoard {
 					// In PvE, only allow player (Black) to move manually
 					// In PvP, both can move manually (turn logic handled by Board)
-					if g.Mode == GameModePvE && g.Board.CurrentPlayer != PlayerBlack {
+					if g.Mode == GameModePvE && g.Board.currentPlayer != PlayerBlack {
 						// It's bot's turn, ignore click
 					} else {
 						if g.Board.PlaceStone(row, col) {
@@ -90,7 +90,7 @@ func (g *Game) Update() error {
 		}
 
 		// Bot turn (White) - Only in PvE mode
-		if g.Mode == GameModePvE && g.Board.CurrentPlayer == PlayerWhite && !g.IsBotThinking {
+		if g.Mode == GameModePvE && g.Board.currentPlayer == PlayerWhite && !g.IsBotThinking {
 			g.IsBotThinking = true
 			go func() {
 				x, y, err := GetNextMove(g.Board, PlayerWhite)
