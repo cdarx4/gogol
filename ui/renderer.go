@@ -26,26 +26,33 @@ package ui
 import (
 	"image/color"
 
+	"bytes"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"heia2526/gogol/game"
 )
 
 const (
-	cellSize     = 60
-	boardMargin  = 50
-	lineWidth    = 2
-	introTitle   = "GoGol"
-	PVPText      = "Press P or Space to start a PVP game"
-	PVEText      = "Press B to start a PVE game"
-	ThinkingText = "Thinking..."
+	cellSize         = 60
+	boardMargin      = 50
+	lineWidth        = 2
+	introTitle       = "GoGol"
+	PVPText          = "Press P or Space to start a PVP game"
+	PVEText          = "Press B to start a PVE game"
+	ThinkingText     = "Thinking..."
+	TitleFontSize    = 36
+	SubTitleFontSize = 24
 )
 
 var (
-	boardColor = color.RGBA{220, 179, 92, 255}
-	lineColor  = color.RGBA{0, 0, 0, 255}
+	boardColor      = color.RGBA{220, 179, 92, 255}
+	lineColor       = color.RGBA{0, 0, 0, 255}
+	mplusFaceSource *text.GoTextFaceSource
 )
 
 type Renderer struct {
@@ -62,6 +69,13 @@ func NewRenderer() *Renderer {
 	if err != nil {
 		panic(err)
 	}
+
+	s, err := text.NewGoTextFaceSource(bytes.NewReader(fonts.PressStart2P_ttf))
+	if err != nil {
+		panic(err)
+	}
+	mplusFaceSource = s
+
 	return &Renderer{
 		BlackStone: black,
 		WhiteStone: white,
@@ -89,12 +103,52 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 	// Fill background
 	screen.Fill(boardColor)
 
-	// Draw title "GoGol"
 	size := screen.Bounds().Size()
-	width, height := size.X, size.Y
-	ebitenutil.DebugPrintAt(screen, introTitle, width/2-30, height/2-40)
-	ebitenutil.DebugPrintAt(screen, PVPText, width/2-100, height/2)
-	ebitenutil.DebugPrintAt(screen, PVEText, width/2-100, height/2+20)
+	screenWidth, screenHeight := float64(size.X), float64(size.Y)
+
+	// Define text faces
+	titleFace := &text.GoTextFace{
+		Source: mplusFaceSource,
+		Size:   TitleFontSize,
+	}
+	subtitleFace := &text.GoTextFace{
+		Source: mplusFaceSource,
+		Size:   SubTitleFontSize,
+	}
+
+	// Measure text bounds
+	titleW, titleH := text.Measure(introTitle, titleFace, TitleFontSize)
+	pvpW, pvpH := text.Measure(PVPText, subtitleFace, SubTitleFontSize)
+	pveW, pveH := text.Measure(PVEText, subtitleFace, SubTitleFontSize)
+
+	// Calculate total height and spacing
+	lineSpacing := float64(SubTitleFontSize) // Space between lines
+	totalTextHeight := titleH + pvpH + pveH + 2*lineSpacing
+
+	// Calculate starting Y for the first text (introTitle) to center the block vertically
+	currentY := (screenHeight - totalTextHeight) / 2
+
+	// Draw introTitle
+	op := &text.DrawOptions{}
+	op.GeoM.Translate((screenWidth-titleW)/2, currentY)
+	op.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, introTitle, titleFace, op)
+
+	currentY += titleH + lineSpacing
+
+	// Draw PVPText
+	op.GeoM.Reset()
+	op.GeoM.Translate((screenWidth-pvpW)/2, currentY)
+	op.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, PVPText, subtitleFace, op)
+
+	currentY += pvpH + lineSpacing
+
+	// Draw PVEText
+	op.GeoM.Reset()
+	op.GeoM.Translate((screenWidth-pveW)/2, currentY)
+	op.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, PVEText, subtitleFace, op)
 }
 
 func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {

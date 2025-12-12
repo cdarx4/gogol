@@ -20,284 +20,267 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
+
 package game
 
-// Imports
-import (
-	"fmt"
-)
+// ---------- Board creation ----------
 
-// Represents the board
-type Board struct {
-	Size          int
-	Grid          [][]*Stone
-	Groups        []*Group
-	NextGroupId   int
-	CurrentPlayer Player
-}
-
-// Creates a new board for the game with the
-// given size.
+// Creates and returns a new empty board of given size.
 func NewBoard(size int) *Board {
 	grid := make([][]*Stone, size)
 	for i := range grid {
 		grid[i] = make([]*Stone, size)
 	}
+
 	return &Board{
 		Size:          size,
 		Grid:          grid,
-		NextGroupId:   0,
-		CurrentPlayer: PlayerBlack,
+		currentPlayer: StartingPlayer,
 	}
 }
 
-// Function to place stone on board
-func (b *Board) PlaceStone(x, y int) bool {
-	if x < 0 || x >= b.Size || y < 0 || y >= b.Size {
-		return false
-	}
+// ---------- Helpers ----------
 
-	// Check if the spot is already occupied
-	if b.Grid[x][y] != nil {
-		return false
-	}
-
-	// Create the stone and place it
-	stone := &Stone{
-		X:      x,
-		Y:      y,
-		Player: b.CurrentPlayer,
-	}
-
-	b.Grid[x][y] = stone
-
-	// Handle Groups
-	neighbors := b.getNeighbors(x, y)
-	b.handleGroups(stone, neighbors)
-
-	// Update liberties
-	b.UpdateAffectedLiberties(stone, x, y)
-
-	// Switch turns
-	b.SwitchTurn()
-
-	return true
+// Returns true if (x, y) is within the board boundaries.
+func (b *Board) isInBounds(x, y int) bool {
+	return x >= 0 && x < b.Size && y >= 0 && y < b.Size
 }
 
-// Given a coordinate,
-// returns an array of the neighbors
-func (b *Board) getNeighbors(x, y int) []*Stone {
-	neighbors := []*Stone{}
-	directions := []struct{ dx, dy int }{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
-	for _, d := range directions {
-		nx, ny := x+d.dx, y+d.dy
-		if nx >= 0 && nx < b.Size && ny >= 0 && ny < b.Size {
-			neighbor := b.Grid[nx][ny]
-			if neighbor != nil && neighbor.Player == b.CurrentPlayer {
-				neighbors = append(neighbors, neighbor)
+// Returns true if (x, y) is occupied by a stone.
+func (b *Board) isOccupied(x, y int) bool {
+	return b.Grid[x][y] != nil
+}
+
+// ---------- Group & liberty recomputation ----------
+
+// Recomputes the liberties of a group by checking all empty adjacent points for every stone in the group.
+func (b *Board) recomputeGroupLiberties(group *Group) {
+	group.Liberties = make(map[[2]int]struct{})
+
+	for _, s := range group.Stones {
+		for _, d := range AdjacentDirections {
+			nx, ny := s.X+d.dx, s.Y+d.dy
+			if b.isInBounds(nx, ny) && b.Grid[nx][ny] == nil {
+				group.Liberties[[2]int{nx, ny}] = struct{}{}
 			}
 		}
 	}
-	return neighbors
 }
 
-// Given a stone and its neighbors,
-// merges the groups if necessary
-func (b *Board) handleGroups(stone *Stone, neighbors []*Stone) {
-	// Find groups to merge
-	// These for loops check all the neighbors of the
-	// stone and add the group to the map if it's not already there
-	// TODO optimize this
-	groupsToMerge := make(map[int]*Group)
-	for _, n := range neighbors {
-		for _, g := range b.Groups {
-			if g.ID == n.GroupId {
-				groupsToMerge[g.ID] = g
+// Recomputes liberties for all groups on the board.
+func (b *Board) recomputeAllGroupLiberties() {
+	for _, g := range b.Groups {
+		b.recomputeGroupLiberties(g)
+	}
+}
+
+// ---------- Group creation / merging ----------
+
+// Creates a new group for the given stone and adds it to the board's group list.
+func (b *Board) createGroup(stone *Stone) *Group {
+	group := &Group{
+		ID:     b.nextGroupId,
+		Player: stone.Player,
+		Stones: []*Stone{stone},
+	}
+	b.nextGroupId++
+	b.Groups = append(b.Groups, group)
+	stone.Group = group
+	return group
+}
+
+// Merges other groups into the target group (used when placing a stone connects separate friendly groups).
+func (b *Board) mergeGroups(target *Group, others []*Group) {
+	for _, g := range others {
+		for _, s := range g.Stones {
+			s.Group = target
+			target.Stones = append(target.Stones, s)
+		}
+	}
+	b.removeGroups(others)
+}
+
+// Removes the listed groups from the board's group list.
+func (b *Board) removeGroups(groups []*Group) {
+	filtered := []*Group{}
+	for _, g := range b.Groups {
+		keep := true
+		for _, r := range groups {
+			if g.ID == r.ID {
+				keep = false
 				break
 			}
 		}
+		if keep {
+			filtered = append(filtered, g)
+		}
 	}
-
-	// If there's no group to merge
-	// Create a new group with only the stone
-	if len(groupsToMerge) == 0 {
-		// New Group
-		newGroup := &Group{
-			ID:        b.NextGroupId,
-			Player:    b.CurrentPlayer,
-			Stones:    []*Stone{stone},
-			Liberties: 0,
-		}
-		b.NextGroupId++
-		b.Groups = append(b.Groups, newGroup)
-		stone.GroupId = newGroup.ID
-	} else {
-		// Merge Groups
-		var targetGroup *Group
-		// Pick the first one as target
-		for _, g := range groupsToMerge {
-			targetGroup = g
-			break
-		}
-
-		// Add the stone to the target group to merge them
-		targetGroup.Stones = append(targetGroup.Stones, stone)
-		stone.GroupId = targetGroup.ID
-
-		// Move all the stones to the target group
-		for _, g := range groupsToMerge {
-			if g != targetGroup {
-				// Move stones to targetGroup
-				for _, s := range g.Stones {
-					s.GroupId = targetGroup.ID
-					targetGroup.Stones = append(targetGroup.Stones, s)
-				}
-			}
-		}
-
-		// Remove merged groups from b.Groups
-		newGroups := []*Group{}
-		for _, g := range b.Groups {
-			keep := true
-			for _, merged := range groupsToMerge {
-				if g == merged && g != targetGroup {
-					keep = false
-					break
-				}
-			}
-			if keep {
-				newGroups = append(newGroups, g)
-			}
-		}
-		b.Groups = newGroups
-	}
+	b.Groups = filtered
 }
 
-// Given a group,
-// updates the liberties of the group
-func (b *Board) UpdateLiberties(g *Group) {
-	liberties := make(map[string]bool)
-	directions := []struct{ dx, dy int }{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
+// ---------- Capture logic ----------
 
-	for _, s := range g.Stones {
-		for _, d := range directions {
-			nx, ny := s.X+d.dx, s.Y+d.dy
-			if nx >= 0 && nx < b.Size && ny >= 0 && ny < b.Size {
-				if b.Grid[nx][ny] == nil {
-					key := fmt.Sprintf("%d,%d", nx, ny)
-					liberties[key] = true
-				}
-			}
-		}
-	}
-
-	// Delete group if no liberties
-	if len(liberties) == 0 {
-		b.RemoveGroup(g)
-	}
-
-	g.Liberties = len(liberties)
-}
-
-// Given a stone and its coordinates,
-// updates the liberties of the group
-func (b *Board) UpdateAffectedLiberties(stone *Stone, x, y int) {
-	// Update liberties for the current group
-	currentGroup := b.GetGroup(stone.GroupId)
-	if currentGroup != nil {
-		b.UpdateLiberties(currentGroup)
-	}
-
-	// Update liberties for adjacent opponent groups
-	directions := []struct{ dx, dy int }{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
-	for _, d := range directions {
-		nx, ny := x+d.dx, y+d.dy
-		if nx >= 0 && nx < b.Size && ny >= 0 && ny < b.Size {
-			neighbor := b.Grid[nx][ny]
-			if neighbor != nil && neighbor.Player != b.CurrentPlayer {
-				opponentGroup := b.GetGroup(neighbor.GroupId)
-				if opponentGroup != nil {
-					b.UpdateLiberties(opponentGroup)
-				}
-			}
-		}
-	}
-}
-
-// Switches the turn
-func (b *Board) SwitchTurn() {
-	if b.CurrentPlayer == PlayerBlack {
-		b.CurrentPlayer = PlayerWhite
-	} else {
-		b.CurrentPlayer = PlayerBlack
-	}
-}
-
-// Given a group id,
-// returns the group
-func (b *Board) GetGroup(id int) *Group {
-	for _, g := range b.Groups {
-		if g.ID == id {
-			return g
-		}
-	}
-	return nil
-}
-
-// Removes a group from the board
-func (b *Board) RemoveGroup(g *Group) {
-	// Identify neighbors to update liberties later
-	neighborsToUpdate := make(map[int]*Group)
-	directions := []struct{ dx, dy int }{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
-
-	for _, s := range g.Stones {
-		// Check neighbors before removing stone
-		for _, d := range directions {
-			nx, ny := s.X+d.dx, s.Y+d.dy
-			if nx >= 0 && nx < b.Size && ny >= 0 && ny < b.Size {
-				neighbor := b.Grid[nx][ny]
-				if neighbor != nil && neighbor.GroupId != g.ID {
-					ng := b.GetGroup(neighbor.GroupId)
-					if ng != nil {
-						neighborsToUpdate[ng.ID] = ng
-					}
-				}
-			}
-		}
-		// Remove stone from grid
+// Removes all stones in the group from the board and updates group list.
+func (b *Board) captureGroup(group *Group) {
+	for _, s := range group.Stones {
 		b.Grid[s.X][s.Y] = nil
 	}
-
-	// Remove group from list
-	newGroups := []*Group{}
-	for _, group := range b.Groups {
-		if group.ID != g.ID {
-			newGroups = append(newGroups, group)
-		}
-	}
-	b.Groups = newGroups
-
-	// Update liberties of neighbors
-	for _, ng := range neighborsToUpdate {
-		b.UpdateLiberties(ng)
-	}
+	b.removeGroups([]*Group{group})
 }
 
-// Returns the string representation of the board
-func (b *Board) String() string {
-	boardState := ""
-	for y := 0; y < b.Size; y++ {
-		for x := 0; x < b.Size; x++ {
-			stone := b.Grid[x][y]
-			if stone == nil {
-				boardState += ". "
-			} else if stone.Player == PlayerBlack {
-				boardState += "B "
-			} else {
-				boardState += "W "
+// ---------- Suicide check (simulation) ----------
+
+// Checks if placing a stone of `player` at (x, y) would be a suicide (illegal self-capture).
+// Returns true if the move is suicide and thus illegal.
+func (b *Board) isSuicide(x, y int, player Player) bool {
+	// Note: tempStone is not used but would represent the hypothetical stone.
+	// This function simulates the consequences of the move without modifying board state.
+
+	adjGroups := b.adjacentGroups(x, y)
+	friendly := []*Group{}
+	opponent := []*Group{}
+
+	// Separate adjacent friendly and opponent groups.
+	for _, g := range adjGroups {
+		if g.Player == player {
+			friendly = append(friendly, g)
+		} else {
+			opponent = append(opponent, g)
+		}
+	}
+
+	// If any opponent group would be captured by this move, it's not suicide.
+	for _, g := range opponent {
+		b.recomputeGroupLiberties(g)
+		if len(g.Liberties) == 1 {
+			if _, ok := g.Liberties[[2]int{x, y}]; ok {
+				return false
 			}
 		}
-		boardState += "\n"
 	}
-	return boardState
+
+	// Simulate merged group liberties after this move.
+	liberties := make(map[[2]int]struct{})
+	for _, d := range AdjacentDirections {
+		nx, ny := x+d.dx, y+d.dy
+		if b.isInBounds(nx, ny) && b.Grid[nx][ny] == nil {
+			liberties[[2]int{nx, ny}] = struct{}{}
+		}
+	}
+
+	// Add liberties from adjacent friendly groups (excluding the spot itself)
+	for _, g := range friendly {
+		b.recomputeGroupLiberties(g)
+		for l := range g.Liberties {
+			if l != ([2]int{x, y}) {
+				liberties[l] = struct{}{}
+			}
+		}
+	}
+
+	// If no liberties remain, it's suicide.
+	return len(liberties) == 0
+}
+
+// ---------- Adjacent groups ----------
+
+// Returns a slice of all unique groups directly adjacent to (x, y).
+func (b *Board) adjacentGroups(x, y int) []*Group {
+	seen := map[int]struct{}{}
+	var result []*Group
+
+	for _, d := range AdjacentDirections {
+		nx, ny := x+d.dx, y+d.dy
+		if !b.isInBounds(nx, ny) {
+			continue
+		}
+		s := b.Grid[nx][ny]
+		if s != nil && s.Group != nil {
+			if _, ok := seen[s.Group.ID]; !ok {
+				seen[s.Group.ID] = struct{}{}
+				result = append(result, s.Group)
+			}
+		}
+	}
+	return result
+}
+
+// ---------- Place stone (main rule engine) ----------
+
+// Places a stone for the current player at (x, y) if legal, enacts all necessary group/capture logic, and advances the turn.
+// Returns true if the move was successful.
+func (b *Board) PlaceStone(x, y int) bool {
+	// 1. Basic legality checks: must be on board, location must be empty.
+	if !b.isInBounds(x, y) || b.isOccupied(x, y) {
+		return false
+	}
+
+	// 2. Illegal move if it would be suicide (self-capture).
+	if b.isSuicide(x, y, b.currentPlayer) {
+		return false
+	}
+
+	// 3. Place the new stone and create its group.
+	stone := &Stone{X: x, Y: y, Player: b.currentPlayer}
+	b.Grid[x][y] = stone
+	newGroup := b.createGroup(stone)
+
+	// 4. Merge with any adjacent friendly groups created by this placement.
+	adj := b.adjacentGroups(x, y)
+	toMerge := []*Group{}
+
+	for _, g := range adj {
+		if g.Player == b.currentPlayer {
+			toMerge = append(toMerge, g)
+		}
+	}
+
+	if len(toMerge) > 0 {
+		b.mergeGroups(newGroup, toMerge)
+	}
+
+	// 5. Recompute liberties after merge and before captures.
+	b.recomputeAllGroupLiberties()
+
+	// 6. Capture any adjacent opponent groups that have lost all liberties.
+	for _, g := range b.Groups {
+		if g.Player != b.currentPlayer && len(g.Liberties) == 0 {
+			b.captureGroup(g)
+		}
+	}
+
+	// 7. Recompute liberties again after any captures.
+	b.recomputeAllGroupLiberties()
+
+	// 8. Switch to the next player's turn.
+	b.switchTurn()
+	return true
+}
+
+// ---------- Turn ----------
+
+// Switches current player to their opponent.
+func (b *Board) switchTurn() {
+	b.currentPlayer = b.currentPlayer.Opponent()
+}
+
+// ---------- Debug ----------
+
+// Returns a string representing the board as ASCII art (B/W/. for Black/White/empty).
+func (b *Board) String() string {
+	out := ""
+	for y := 0; y < b.Size; y++ {
+		for x := 0; x < b.Size; x++ {
+			s := b.Grid[x][y]
+			if s == nil {
+				out += ". "
+			} else if s.Player == PlayerBlack {
+				out += "B "
+			} else {
+				out += "W "
+			}
+		}
+		out += "\n"
+	}
+	return out
 }

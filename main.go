@@ -43,7 +43,7 @@ var envFile string
 const (
 	WindowWidth  = 600
 	WindowHeight = 600
-	WindowTitle  = "GoGol - 9x9 Board"
+	WindowTitle  = "GoGol - Go game"
 	EnvFileError = "No .env file found"
 )
 

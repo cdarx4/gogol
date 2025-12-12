@@ -19,6 +19,7 @@ This image was taken from : https://www.reddit.com/r/baduk/comments/vn936i/i_hav
 [ ] Make the interface more beautiful
 [ ] Add the pipeline in Github for tests, linting, ...
 [ ] Publish on the github pages
+[ ] add the embed for images
 
 # Project structure
 
