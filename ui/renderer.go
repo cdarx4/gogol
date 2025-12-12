@@ -45,8 +45,8 @@ const (
 	PVPText          = "Press P or Space to start a PVP game"
 	PVEText          = "Press B to start a PVE game"
 	ThinkingText     = "Thinking..."
-	TitleFontSize    = 36
-	SubTitleFontSize = 24
+	TitleFontSize    = 24
+	SubTitleFontSize = 12
 )
 
 var (
