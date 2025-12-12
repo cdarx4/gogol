@@ -69,10 +69,6 @@ jobs:
         run: |
           GOOS=js GOARCH=wasm go build -o gogol.wasm main.go
 
-      - name: "[📋] Copy wasm_exec.js"
-        run: |
-          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
-
       - name: "[📦] Prepare deployment artifacts"
         run: |
           mkdir -p deploy
