@@ -48,10 +48,10 @@ jobs:
       - name: "[🛠️] Install Linux dependencies"
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+          sudo apt-get install -y libasound2-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev xvfb
 
       - name: "[🧪] Run tests"
-        run: go test ./game/... -v -coverprofile=coverage.out
+        run: xvfb-run -a go test ./game/... -v -coverprofile=coverage.out
 
   build-wasm:
     needs: [lint, test]
