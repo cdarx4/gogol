@@ -26,8 +26,18 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// Position represents a coordinate on the board
+type Position struct {
+	X, Y int
+}
+
+// IsPass returns true if this position represents a pass move
+func (p Position) IsPass() bool {
+	return p.X == -1 && p.Y == -1
+}
+
 // Represents the different states of the game
-type GameStates string
+type GameState string
 
 // GameMode represents the mode of the game (PvP or PvE)
 type GameMode int
@@ -60,7 +70,7 @@ type Group struct {
 	ID        int
 	Player    Player
 	Stones    []*Stone
-	Liberties map[[2]int]struct{}
+	Liberties map[Position]struct{}
 }
 
 // Represents the board
@@ -69,7 +79,7 @@ type Board struct {
 	Grid          [][]*Stone
 	Groups        []*Group
 	nextGroupId   int
-	CurrentPlayer Player // Exported for AI evaluation
+	CurrentPlayer Player
 	PassCount     int
 }
 
@@ -87,7 +97,7 @@ type AIPlayer interface {
 
 // Represents the struct for the game itself
 type Game struct {
-	State         GameStates
+	State         GameState
 	Renderer      Renderer
 	Board         *Board
 	Mode          GameMode
@@ -102,12 +112,13 @@ type BotMoveResult struct {
 }
 
 const (
-	GameStateIntro GameStates = "intro"
-	GameStateGame  GameStates = "game"
-	GameStateEnd   GameStates = "end"
+	GameStateIntro GameState = "intro"
+	GameStateGame  GameState = "game"
+	GameStateEnd   GameState = "end"
 )
 
-var AdjacentDirections = []struct{ dx, dy int }{
+// AdjacentDirections represents the four cardinal directions (up, down, left, right)
+var AdjacentDirections = []Position{
 	{-1, 0}, {1, 0}, {0, -1}, {0, 1},
 }
 

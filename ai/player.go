@@ -45,7 +45,7 @@ func NewMLPPlayer(model *MLP) *MLPPlayer {
 
 // MoveScore represents a move with its evaluation score
 type MoveScore struct {
-	Move  [2]int
+	Move  game.Position
 	Score float64
 }
 
@@ -65,10 +65,10 @@ func (p *MLPPlayer) NextMove(b *game.Board, player game.Player) (x, y int, err e
 	// Evaluate each move
 	moveScores := make([]MoveScore, 0, len(legalMoves))
 	for _, move := range legalMoves {
-		x, y := move[0], move[1]
+		x, y := move.X, move.Y
 
 		// For pass move, use a default low score
-		if x == -1 && y == -1 {
+		if move.IsPass() {
 			moveScores = append(moveScores, MoveScore{
 				Move:  move,
 				Score: -1000.0, // Very low score for pass
@@ -108,7 +108,7 @@ func (p *MLPPlayer) NextMove(b *game.Board, player game.Player) (x, y int, err e
 	// Selection strategy: 80% best move, 20% weighted random from top 5
 	if rand.Float64() < 0.8 {
 		// Return best move
-		return moveScores[0].Move[0], moveScores[0].Move[1], nil
+		return moveScores[0].Move.X, moveScores[0].Move.Y, nil
 	}
 
 	// Weighted random from top 5 (or fewer if less than 5 moves available)
@@ -135,10 +135,10 @@ func (p *MLPPlayer) NextMove(b *game.Board, player game.Player) (x, y int, err e
 	for i := 0; i < topN; i++ {
 		cumulative += weights[i]
 		if r <= cumulative {
-			return moveScores[i].Move[0], moveScores[i].Move[1], nil
+			return moveScores[i].Move.X, moveScores[i].Move.Y, nil
 		}
 	}
 
 	// Fallback to best move
-	return moveScores[0].Move[0], moveScores[0].Move[1], nil
+	return moveScores[0].Move.X, moveScores[0].Move.Y, nil
 }

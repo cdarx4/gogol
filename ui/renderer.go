@@ -39,16 +39,21 @@ import (
 )
 
 const (
-	cellSize         = 60
-	boardMargin      = 50
-	lineWidth        = 2
-	introTitle       = "GoGol"
-	PVPText          = "Press P or Space to start a PVP game"
-	PVEText          = "Press B to start a PVE game"
-	ThinkingText     = "Thinking..."
-	PassText         = "Press S to pass"
-	TitleFontSize    = 24
-	SubTitleFontSize = 12
+	cellSize          = 60
+	boardMargin       = 50
+	lineWidth         = 2
+	stoneScaleFactor  = 0.9 // Scale factor for stone images relative to cell size
+	starPointRadius   = 4   // Radius of star points (hoshi) on the board
+	introTitle        = "GoGol"
+	PVPText           = "Press P or Space to start a PVP game"
+	PVEText           = "Press B to start a PVE game"
+	ThinkingText      = "Thinking..."
+	PassText          = "Press S to pass"
+	TitleFontSize     = 24
+	SubTitleFontSize  = 12
+	gameOverBoxWidth  = 400
+	gameOverBoxHeight = 100
+	gameOverBoxAlpha  = 180 // Semi-transparent background alpha value
 )
 
 var (
@@ -157,12 +162,30 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
 	// Fill background with board color (light beige/wood)
 	screen.Fill(boardColor)
-	// Calculate board dimensions
-	boardWidth := (game.BoardSize - 1) * cellSize
-	boardHeight := (game.BoardSize - 1) * cellSize
+
+	// Calculate board position and dimensions
 	startX := float32(boardMargin)
 	startY := float32(boardMargin)
+	boardWidth := (game.BoardSize - 1) * cellSize
+	boardHeight := (game.BoardSize - 1) * cellSize
 
+	// Draw grid lines
+	r.drawGrid(screen, startX, startY, boardWidth, boardHeight)
+
+	// Draw star points (hoshi)
+	r.drawStarPoints(screen, startX, startY)
+
+	// Draw stones
+	if g.Board != nil {
+		r.drawStones(screen, g.Board, startX, startY)
+	}
+
+	// Draw UI text (thinking indicator or pass instruction)
+	r.drawGameUI(screen, g)
+}
+
+// drawGrid draws the horizontal and vertical grid lines
+func (r *Renderer) drawGrid(screen *ebiten.Image, startX, startY float32, boardWidth, boardHeight int) {
 	// Draw vertical lines
 	for i := 0; i < game.BoardSize; i++ {
 		x := startX + float32(i*cellSize)
@@ -174,76 +197,97 @@ func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
 		y := startY + float32(i*cellSize)
 		vector.StrokeLine(screen, startX, y, startX+float32(boardWidth), y, lineWidth, lineColor, false)
 	}
+}
 
-	// Draw star points (hoshi)
+// drawStarPoints draws the star points (hoshi) on the board
+func (r *Renderer) drawStarPoints(screen *ebiten.Image, startX, startY float32) {
+	// Star points for a 9x9 board
 	starPoints := [][]int{
 		{2, 2}, {2, 6},
 		{6, 2}, {6, 6},
 		{4, 4},
 	}
-	starRadius := float32(4)
+
 	for _, point := range starPoints {
 		x := startX + float32(point[0]*cellSize)
 		y := startY + float32(point[1]*cellSize)
-		vector.FillCircle(screen, x, y, starRadius, lineColor, false)
+		vector.FillCircle(screen, x, y, starPointRadius, lineColor, false)
 	}
+}
 
-	// Draw stones
-	if g.Board != nil {
-		for i := 0; i < game.BoardSize; i++ {
-			for j := 0; j < game.BoardSize; j++ {
-				stone := g.Board.Grid[i][j]
-				if stone != nil {
-					x := float64(startX) + float64(i*cellSize)
-					y := float64(startY) + float64(j*cellSize)
-
-					var img *ebiten.Image
-					if stone.Player == game.PlayerBlack {
-						img = r.BlackStone
-					} else {
-						img = r.WhiteStone
-					}
-
-					if img != nil {
-						op := &ebiten.DrawImageOptions{}
-						// Center the image
-						size := img.Bounds().Size()
-						width, height := size.X, size.Y
-						// Scale to fit cellSize (slightly smaller)
-						scale := float64(cellSize) * 0.9 / float64(width)
-						op.GeoM.Scale(scale, scale)
-						// Center the image on the corss section
-						op.GeoM.Translate(x-float64(width)*scale/2, y-float64(height)*scale/2)
-
-						screen.DrawImage(img, op)
-					} else {
-						// Fallback if image load failed (shouldn't happen with NewRenderer panic)
-						radius := float32(cellSize) / 2 * 0.9
-						var c color.Color
-						if stone.Player == game.PlayerBlack {
-							c = color.Black
-						} else {
-							c = color.White
-						}
-						vector.FillCircle(screen, float32(x), float32(y), radius, c, true)
-					}
-				}
+// drawStones draws all stones on the board
+// Note: Grid uses [row][col] indexing where row corresponds to X and col to Y
+func (r *Renderer) drawStones(screen *ebiten.Image, board *game.Board, startX, startY float32) {
+	for row := 0; row < game.BoardSize; row++ {
+		for col := 0; col < game.BoardSize; col++ {
+			stone := board.Grid[row][col]
+			if stone == nil {
+				continue
 			}
+
+			// Calculate screen position: row maps to X, col maps to Y
+			screenX := float64(startX) + float64(row*cellSize)
+			screenY := float64(startY) + float64(col*cellSize)
+
+			r.drawStone(screen, stone, screenX, screenY)
 		}
 	}
+}
+
+// drawStone draws a single stone at the given screen coordinates
+func (r *Renderer) drawStone(screen *ebiten.Image, stone *game.Stone, screenX, screenY float64) {
+	var img *ebiten.Image
+	if stone.Player == game.PlayerBlack {
+		img = r.BlackStone
+	} else {
+		img = r.WhiteStone
+	}
+
+	if img != nil {
+		r.drawStoneImage(screen, img, screenX, screenY)
+	} else {
+		// Fallback if image load failed (shouldn't happen with NewRenderer panic)
+		r.drawStoneFallback(screen, stone, screenX, screenY)
+	}
+}
+
+// drawStoneImage draws a stone using the loaded image
+func (r *Renderer) drawStoneImage(screen *ebiten.Image, img *ebiten.Image, screenX, screenY float64) {
+	op := &ebiten.DrawImageOptions{}
+	size := img.Bounds().Size()
+	width, height := size.X, size.Y
+
+	// Scale to fit cellSize (slightly smaller)
+	scale := float64(cellSize) * stoneScaleFactor / float64(width)
+	op.GeoM.Scale(scale, scale)
+
+	// Center the image on the cross section
+	op.GeoM.Translate(screenX-float64(width)*scale/2, screenY-float64(height)*scale/2)
+
+	screen.DrawImage(img, op)
+}
+
+// drawStoneFallback draws a stone as a circle if image loading failed
+func (r *Renderer) drawStoneFallback(screen *ebiten.Image, stone *game.Stone, screenX, screenY float64) {
+	radius := float32(cellSize) / 2 * stoneScaleFactor
+	var c color.Color
+	if stone.Player == game.PlayerBlack {
+		c = color.Black
+	} else {
+		c = color.White
+	}
+	vector.FillCircle(screen, float32(screenX), float32(screenY), radius, c, true)
+}
+
+// drawGameUI draws UI text (thinking indicator or pass instruction)
+func (r *Renderer) drawGameUI(screen *ebiten.Image, g *game.Game) {
+	size := screen.Bounds().Size()
+	width, height := size.X, size.Y
 
 	if g.IsBotThinking {
-		size := screen.Bounds().Size()
-		width, height := size.X, size.Y
 		ebitenutil.DebugPrintAt(screen, ThinkingText, width/2-30, height-20)
 	} else {
-		// Show pass instruction if it's not bot thinking (and implicitly it's a human turn)
-		// We could be more specific (only if current player is human), but for now this is fine.
-		size := screen.Bounds().Size()
-		width, height := size.X, size.Y
-		// Draw it slightly above bottom or in a corner. Let's put it top left or bottom left.
-		// For consistency with DebugPrintAt which is simple, let's use it.
-		// width/2 - 40 to center roughly? "Press S to pass" is about 15 chars.
+		// Show pass instruction
 		ebitenutil.DebugPrintAt(screen, PassText, width/2-50, height-20)
 	}
 }
@@ -298,7 +342,9 @@ func (r *Renderer) drawGameOver(screen *ebiten.Image, g *game.Game) {
 	width, height := size.X, size.Y
 
 	// Draw a semi-transparent background
-	vector.FillRect(screen, float32(width/2-200), float32(height/2-50), 400, 100, color.RGBA{0, 0, 0, 180}, false)
+	boxX := float32(width/2 - gameOverBoxWidth/2)
+	boxY := float32(height/2 - gameOverBoxHeight/2)
+	vector.FillRect(screen, boxX, boxY, gameOverBoxWidth, gameOverBoxHeight, color.RGBA{0, 0, 0, gameOverBoxAlpha}, false)
 
 	ebitenutil.DebugPrintAt(screen, textStr, width/2-100, height/2-20)
 }

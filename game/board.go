@@ -26,7 +26,12 @@ package game
 // ---------- Board creation ----------
 
 // Creates and returns a new empty board of given size.
+// Panics if size is not positive.
 func NewBoard(size int) *Board {
+	if size <= 0 {
+		panic("board size must be positive")
+	}
+
 	grid := make([][]*Stone, size)
 	for i := range grid {
 		grid[i] = make([]*Stone, size)
@@ -55,13 +60,13 @@ func (b *Board) isOccupied(x, y int) bool {
 
 // Recomputes the liberties of a group by checking all empty adjacent points for every stone in the group.
 func (b *Board) recomputeGroupLiberties(group *Group) {
-	group.Liberties = make(map[[2]int]struct{})
+	group.Liberties = make(map[Position]struct{})
 
 	for _, s := range group.Stones {
 		for _, d := range AdjacentDirections {
-			nx, ny := s.X+d.dx, s.Y+d.dy
+			nx, ny := s.X+d.X, s.Y+d.Y
 			if b.isInBounds(nx, ny) && b.Grid[nx][ny] == nil {
-				group.Liberties[[2]int{nx, ny}] = struct{}{}
+				group.Liberties[Position{X: nx, Y: ny}] = struct{}{}
 			}
 		}
 	}
@@ -150,21 +155,22 @@ func (b *Board) isSuicide(x, y int, player Player) bool {
 	}
 
 	// If any opponent group would be captured by this move, it's not suicide.
+	movePos := Position{X: x, Y: y}
 	for _, g := range opponent {
 		b.recomputeGroupLiberties(g)
 		if len(g.Liberties) == 1 {
-			if _, ok := g.Liberties[[2]int{x, y}]; ok {
+			if _, ok := g.Liberties[movePos]; ok {
 				return false
 			}
 		}
 	}
 
 	// Simulate merged group liberties after this move.
-	liberties := make(map[[2]int]struct{})
+	liberties := make(map[Position]struct{})
 	for _, d := range AdjacentDirections {
-		nx, ny := x+d.dx, y+d.dy
+		nx, ny := x+d.X, y+d.Y
 		if b.isInBounds(nx, ny) && b.Grid[nx][ny] == nil {
-			liberties[[2]int{nx, ny}] = struct{}{}
+			liberties[Position{X: nx, Y: ny}] = struct{}{}
 		}
 	}
 
@@ -172,7 +178,7 @@ func (b *Board) isSuicide(x, y int, player Player) bool {
 	for _, g := range friendly {
 		b.recomputeGroupLiberties(g)
 		for l := range g.Liberties {
-			if l != ([2]int{x, y}) {
+			if l != movePos {
 				liberties[l] = struct{}{}
 			}
 		}
@@ -190,7 +196,7 @@ func (b *Board) adjacentGroups(x, y int) []*Group {
 	var result []*Group
 
 	for _, d := range AdjacentDirections {
-		nx, ny := x+d.dx, y+d.dy
+		nx, ny := x+d.X, y+d.Y
 		if !b.isInBounds(nx, ny) {
 			continue
 		}
@@ -343,7 +349,7 @@ func (b *Board) Clone() *Board {
 							ID:        oldStone.Group.ID,
 							Player:    oldStone.Group.Player,
 							Stones:    []*Stone{newStone},
-							Liberties: make(map[[2]int]struct{}),
+							Liberties: make(map[Position]struct{}),
 						}
 						groupMap[oldStone.Group.ID] = newGroup
 						cloned.Groups = append(cloned.Groups, newGroup)
@@ -366,12 +372,12 @@ func (b *Board) Clone() *Board {
 // ---------- Legal moves ----------
 
 // GetLegalMoves returns all legal moves for the given player
-// Includes pass move represented as (-1, -1)
-func (b *Board) GetLegalMoves(p Player) [][2]int {
-	moves := make([][2]int, 0)
+// Includes pass move represented as Position{X: -1, Y: -1}
+func (b *Board) GetLegalMoves(p Player) []Position {
+	moves := make([]Position, 0)
 
 	// Add pass move
-	moves = append(moves, [2]int{-1, -1})
+	moves = append(moves, Position{X: -1, Y: -1})
 
 	// Check all board positions
 	for x := 0; x < b.Size; x++ {
@@ -380,7 +386,7 @@ func (b *Board) GetLegalMoves(p Player) [][2]int {
 			if !b.isOccupied(x, y) {
 				// Check if move is legal (not suicide)
 				if !b.isSuicide(x, y, p) {
-					moves = append(moves, [2]int{x, y})
+					moves = append(moves, Position{X: x, Y: y})
 				}
 			}
 		}
@@ -396,7 +402,8 @@ func (b *Board) CloneAndPlay(x, y int, p Player) (*Board, bool) {
 	cloned := b.Clone()
 
 	// Handle pass move
-	if x == -1 && y == -1 {
+	pos := Position{X: x, Y: y}
+	if pos.IsPass() {
 		cloned.Pass()
 		return cloned, true
 	}
