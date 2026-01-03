@@ -34,6 +34,7 @@ func (g *Game) Init() {
 	g.State = GameStateIntro
 	g.Board = NewBoard(BoardSize)
 	g.Mode = GameModePvP
+	g.Difficulty = DifficultyMedium
 	g.BotMoveChan = make(chan BotMoveResult)
 }
 
@@ -49,6 +50,18 @@ func (g *Game) Update() error {
 		} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.Mode = GameModePvP
 			g.State = GameStateGame
+		} else if inpututil.IsKeyJustPressed(ebiten.Key1) || inpututil.IsKeyJustPressed(ebiten.KeyKP1) {
+			g.Mode = GameModePvE
+			g.Difficulty = DifficultyEasy
+			g.State = GameStateGame
+		} else if inpututil.IsKeyJustPressed(ebiten.Key2) || inpututil.IsKeyJustPressed(ebiten.KeyKP2) {
+			g.Mode = GameModePvE
+			g.Difficulty = DifficultyMedium
+			g.State = GameStateGame
+		} else if inpututil.IsKeyJustPressed(ebiten.Key3) || inpututil.IsKeyJustPressed(ebiten.KeyKP3) {
+			g.Mode = GameModePvE
+			g.Difficulty = DifficultyHard
+			g.State = GameStateGame
 		}
 	} else if g.State == GameStateGame {
 		// Check for bot result
@@ -56,8 +69,14 @@ func (g *Game) Update() error {
 		case result := <-g.BotMoveChan:
 			g.IsBotThinking = false
 			if result.Err == nil {
-				if g.Board.PlaceStone(result.X, result.Y) {
+				if result.Pass {
+					g.Board.Pass()
 					g.PrintGame()
+				} else if g.Board.PlaceStone(result.X, result.Y) {
+					g.PrintGame()
+					if g.Board.IsFull() {
+						g.State = GameStateEnd
+					}
 				}
 			} else {
 				fmt.Println("Bot error:", result.Err)
@@ -82,6 +101,9 @@ func (g *Game) Update() error {
 					} else {
 						if g.Board.PlaceStone(row, col) {
 							g.PrintGame()
+							if g.Board.IsFull() {
+								g.State = GameStateEnd
+							}
 						}
 					}
 				}
@@ -99,8 +121,8 @@ func (g *Game) Update() error {
 		if g.Mode == GameModePvE && g.Board.currentPlayer == PlayerWhite && !g.IsBotThinking {
 			g.IsBotThinking = true
 			go func() {
-				x, y, err := GetNextMove(g.Board, PlayerWhite)
-				g.BotMoveChan <- BotMoveResult{X: x, Y: y, Err: err}
+				x, y, pass, err := GetNextMove(g.Board, PlayerWhite, g.Difficulty)
+				g.BotMoveChan <- BotMoveResult{X: x, Y: y, Pass: pass, Err: err}
 			}()
 		}
 

@@ -86,12 +86,14 @@ type Game struct {
 	Renderer      Renderer
 	Board         *Board
 	Mode          GameMode
+	Difficulty    BotDifficulty
 	IsBotThinking bool
 	BotMoveChan   chan BotMoveResult
 }
 
 type BotMoveResult struct {
 	X, Y int
+	Pass bool
 	Err  error
 }
 
@@ -99,6 +101,14 @@ const (
 	GameStateIntro GameStates = "intro"
 	GameStateGame  GameStates = "game"
 	GameStateEnd   GameStates = "end"
+)
+
+type BotDifficulty int
+
+const (
+	DifficultyEasy BotDifficulty = iota
+	DifficultyMedium
+	DifficultyHard
 )
 
 var AdjacentDirections = []struct{ dx, dy int }{

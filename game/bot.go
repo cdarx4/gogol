@@ -34,9 +34,12 @@ import (
 )
 
 const (
-	OpenAIModel        = "gpt-4o-mini-2024-07-18"
-	SystemInstructions = "You are a Go player. you will receive the board state and the player's turn. Return only the coordinates for your next move in the format 'x,y' (0-indexed). Do not explain and think fast."
-	OpenAIURL          = "https://api.openai.com/v1/chat/completions"
+	OpenAIModel = "gpt-4o-mini-2024-07-18"
+	OpenAIURL   = "https://api.openai.com/v1/chat/completions"
+
+	SystemInstructionsEasy   = "You are a beginner Go player. Play quickly and do not think too hard. You can make mistakes. Return only the coordinates for your next move in the format 'x,y' (0-indexed) or 'pass' if you want to pass. Do not explain."
+	SystemInstructionsMedium = "You are a Go player. you will receive the board state and the player's turn. Return only the coordinates for your next move in the format 'x,y' (0-indexed) or 'pass' if you want to pass. Do not explain and think fast."
+	SystemInstructionsHard   = "You are an expert Go player. Play the best move possible to win. Analyze the board carefully. Return only the coordinates for your next move in the format 'x,y' (0-indexed) or 'pass' if you want to pass. Do not explain."
 )
 
 type OpenAIRequest struct {
@@ -57,10 +60,10 @@ type Choice struct {
 	Message Message `json:"message"`
 }
 
-func GetNextMove(board *Board, player Player) (int, int, error) {
+func GetNextMove(board *Board, player Player, difficulty BotDifficulty) (int, int, bool, error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
-		return -1, -1, fmt.Errorf("OPENAI_API_KEY not set")
+		return -1, -1, false, fmt.Errorf("OPENAI_API_KEY not set")
 	}
 
 	boardState := "Current Board State:\n" + board.String()
@@ -70,24 +73,34 @@ func GetNextMove(board *Board, player Player) (int, int, error) {
 		playerStr = "White"
 	}
 
-	prompt := fmt.Sprintf("You are playing Go. You are %s. The board size is %dx%d. %s\nReturn only the coordinates for your next move in the format 'x,y' (0-indexed). Do not explain.", playerStr, board.Size, board.Size, boardState)
+	prompt := fmt.Sprintf("You are playing Go. You are %s. The board size is %dx%d. %s\nReturn only the coordinates for your next move in the format 'x,y' (0-indexed) or 'pass'. Do not explain.", playerStr, board.Size, board.Size, boardState)
+
+	var systemInstructions string
+	switch difficulty {
+	case DifficultyEasy:
+		systemInstructions = SystemInstructionsEasy
+	case DifficultyHard:
+		systemInstructions = SystemInstructionsHard
+	default:
+		systemInstructions = SystemInstructionsMedium
+	}
 
 	reqBody := OpenAIRequest{
 		Model: OpenAIModel,
 		Messages: []Message{
 			{Role: "user", Content: prompt},
-			{Role: "system", Content: SystemInstructions},
+			{Role: "system", Content: systemInstructions},
 		},
 	}
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, false, err
 	}
 
 	req, err := http.NewRequest("POST", OpenAIURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, false, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -96,40 +109,45 @@ func GetNextMove(board *Board, player Player) (int, int, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, false, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, false, err
 	}
 
 	var openAIResp OpenAIResponse
 	err = json.Unmarshal(body, &openAIResp)
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, false, err
 	}
 
 	if len(openAIResp.Choices) == 0 {
-		return -1, -1, fmt.Errorf("no response from OpenAI")
+		return -1, -1, false, fmt.Errorf("no response from OpenAI")
 	}
 
 	content := strings.TrimSpace(openAIResp.Choices[0].Message.Content)
+	fmt.Println(content)
+	if strings.ToLower(content) == "pass" {
+		return -1, -1, true, nil
+	}
+
 	parts := strings.Split(content, ",")
 	if len(parts) != 2 {
-		return -1, -1, fmt.Errorf("invalid response format: %s", content)
+		return -1, -1, false, fmt.Errorf("invalid response format: %s", content)
 	}
 
 	x, err := strconv.Atoi(strings.TrimSpace(parts[0]))
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, false, err
 	}
 
 	y, err := strconv.Atoi(strings.TrimSpace(parts[1]))
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, false, err
 	}
 
-	return x, y, nil
+	return x, y, false, nil
 }

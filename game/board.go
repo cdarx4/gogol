@@ -303,6 +303,18 @@ func (b *Board) GetWinner() (winner *Player, isDraw bool) {
 	return nil, true
 }
 
+// IsFull checks if the board is completely full (no empty spots)
+func (b *Board) IsFull() bool {
+	for x := 0; x < b.Size; x++ {
+		for y := 0; y < b.Size; y++ {
+			if b.Grid[x][y] == nil {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // ---------- Debug ----------
 
 // Returns a string representing the board as ASCII art (B/W/. for Black/White/empty).
