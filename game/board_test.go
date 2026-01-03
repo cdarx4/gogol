@@ -349,3 +349,32 @@ func TestNormalFlow_MultipleMoves_NoUnexpectedCaptures(t *testing.T) {
 		}
 	}
 }
+
+func TestKo_SimpleKoRejected(t *testing.T) {
+	b := NewBoard(9)
+
+	moves := [][2]int{
+		{2, 1},
+		{1, 3},
+		{1, 2},
+		{3, 3},
+		{3, 2},
+		{2, 4},
+		{0, 0},
+		{2, 2},
+	}
+
+	for i, m := range moves {
+		if ok := b.PlaceStone(m[0], m[1]); !ok {
+			t.Fatalf("move %d at (%d,%d) failed", i, m[0], m[1])
+		}
+	}
+
+	assertGroupLiberties(t, b, 2, 2, 1)
+
+	mustPlace(t, b, 2, 3)
+
+	assertAt(t, b, 2, 2, nil)
+
+	mustFail(t, b, 2, 2)
+}

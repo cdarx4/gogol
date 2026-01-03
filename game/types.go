@@ -71,6 +71,7 @@ type Board struct {
 	nextGroupId   int
 	currentPlayer Player
 	PassCount     int
+	History       []string
 }
 
 // Renderer interface for the game

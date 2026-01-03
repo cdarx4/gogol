@@ -32,11 +32,14 @@ func NewBoard(size int) *Board {
 		grid[i] = make([]*Stone, size)
 	}
 
-	return &Board{
+	b := &Board{
 		Size:          size,
 		Grid:          grid,
 		currentPlayer: StartingPlayer,
+		History:       []string{},
 	}
+	b.History = append(b.History, b.String())
+	return b
 }
 
 // ---------- Helpers ----------
@@ -182,6 +185,123 @@ func (b *Board) isSuicide(x, y int, player Player) bool {
 	return len(liberties) == 0
 }
 
+// ---------- Ko Check ----------
+
+// Checks if the move would violate the Ko rule (Positional Superko).
+func (b *Board) isKo(x, y int, player Player) bool {
+	nextState := b.simulateNextState(x, y, player)
+	for _, state := range b.History {
+		if state == nextState {
+			return true
+		}
+	}
+	return false
+}
+
+// Simulates the next board state string after a move.
+func (b *Board) simulateNextState(x, y int, player Player) string {
+	// 1. Create a simplified copy of the grid (0=empty, 1=black, 2=white)
+	sim := make([][]int, b.Size)
+	for i := 0; i < b.Size; i++ {
+		sim[i] = make([]int, b.Size)
+		for j := 0; j < b.Size; j++ {
+			if b.Grid[i][j] != nil {
+				if b.Grid[i][j].Player == PlayerBlack {
+					sim[i][j] = 1
+				} else {
+					sim[i][j] = 2
+				}
+			}
+		}
+	}
+
+	// 2. Place the stone
+	myVal := 1
+	if player == PlayerWhite {
+		myVal = 2
+	}
+	sim[x][y] = myVal
+
+	// 3. Check for captures of opponents
+	oppVal := 1
+	if myVal == 1 {
+		oppVal = 2
+	}
+
+	dirs := [][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
+
+	// Helper: recursive floodfill to check liberties and remove if captured
+	// Returns true if group was captured (removed)
+	var checkAndRemove func(sx, sy int)
+	checkAndRemove = func(sx, sy int) {
+		if sx < 0 || sx >= b.Size || sy < 0 || sy >= b.Size {
+			return
+		}
+		if sim[sx][sy] != oppVal {
+			return
+		}
+
+		// Find group and check liberties
+		group := [][2]int{}
+		q := [][2]int{{sx, sy}}
+		visited := map[[2]int]bool{{sx, sy}: true}
+		hasLiberties := false
+
+		head := 0
+		for head < len(q) {
+			cur := q[head]
+			head++
+			group = append(group, cur)
+			cx, cy := cur[0], cur[1]
+
+			for _, d := range dirs {
+				nx, ny := cx+d[0], cy+d[1]
+				if nx < 0 || nx >= b.Size || ny < 0 || ny >= b.Size {
+					continue
+				}
+				val := sim[nx][ny]
+				if val == 0 {
+					hasLiberties = true
+				} else if val == oppVal {
+					if !visited[[2]int{nx, ny}] {
+						visited[[2]int{nx, ny}] = true
+						q = append(q, [2]int{nx, ny})
+					}
+				}
+			}
+		}
+
+		if !hasLiberties {
+			// Remove group
+			for _, s := range group {
+				sim[s[0]][s[1]] = 0
+			}
+		}
+	}
+
+	// Check all neighbors
+	for _, d := range dirs {
+		checkAndRemove(x+d[0], y+d[1])
+	}
+
+	// 4. Generate string representation
+	out := ""
+	for y := 0; y < b.Size; y++ {
+		for x := 0; x < b.Size; x++ {
+			val := sim[x][y]
+			if val == 0 {
+				out += ". "
+			} else if val == 1 {
+				out += "B "
+			} else {
+				out += "W "
+			}
+		}
+		out += "\n"
+	}
+	return out
+}
+
 // ---------- Adjacent groups ----------
 
 // Returns a slice of all unique groups directly adjacent to (x, y).
@@ -223,6 +343,11 @@ func (b *Board) PlaceStone(x, y int) bool {
 		return false
 	}
 
+	// 3. Illegal move if it violates Ko rule (reps state).
+	if b.isKo(x, y, b.currentPlayer) {
+		return false
+	}
+
 	// 3. Place the new stone and create its group.
 	stone := &Stone{X: x, Y: y, Player: b.currentPlayer}
 	b.Grid[x][y] = stone
@@ -252,10 +377,13 @@ func (b *Board) PlaceStone(x, y int) bool {
 		}
 	}
 
-	// 7. Recompute liberties again after any captures.
+	// 8. Recompute liberties again after any captures.
 	b.recomputeAllGroupLiberties()
 
-	// 8. Switch to the next player's turn.
+	// 9. Register new board state
+	b.History = append(b.History, b.String())
+
+	// 10. Switch to the next player's turn.
 	b.switchTurn()
 	return true
 }

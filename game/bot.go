@@ -85,69 +85,102 @@ func GetNextMove(board *Board, player Player, difficulty BotDifficulty) (int, in
 		systemInstructions = SystemInstructionsMedium
 	}
 
-	reqBody := OpenAIRequest{
-		Model: OpenAIModel,
-		Messages: []Message{
-			{Role: "user", Content: prompt},
-			{Role: "system", Content: systemInstructions},
-		},
+	messages := []Message{
+		{Role: "system", Content: systemInstructions},
+		{Role: "user", Content: prompt},
 	}
-
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		return -1, -1, false, err
-	}
-
-	req, err := http.NewRequest("POST", OpenAIURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return -1, -1, false, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return -1, -1, false, err
-	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return -1, -1, false, err
+	for attempt := 0; attempt < 5; attempt++ {
+		reqBody := OpenAIRequest{
+			Model:    OpenAIModel,
+			Messages: messages,
+		}
+
+		jsonData, err := json.Marshal(reqBody)
+		if err != nil {
+			return -1, -1, false, err
+		}
+
+		req, err := http.NewRequest("POST", OpenAIURL, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return -1, -1, false, err
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return -1, -1, false, err
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return -1, -1, false, err
+		}
+
+		var openAIResp OpenAIResponse
+		err = json.Unmarshal(body, &openAIResp)
+		if err != nil {
+			return -1, -1, false, err
+		}
+
+		if len(openAIResp.Choices) == 0 {
+			return -1, -1, false, fmt.Errorf("no response from OpenAI")
+		}
+
+		content := strings.TrimSpace(openAIResp.Choices[0].Message.Content)
+		fmt.Printf("Bot attempt %d: %s\n", attempt+1, content)
+
+		if strings.ToLower(content) == "pass" {
+			return -1, -1, true, nil
+		}
+
+		parts := strings.Split(content, ",")
+		if len(parts) != 2 {
+			messages = append(messages, Message{Role: "assistant", Content: content})
+			messages = append(messages, Message{Role: "user", Content: "Invalid format. Return coordinates as 'x,y'."})
+			continue
+		}
+
+		x, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+		if err != nil {
+			messages = append(messages, Message{Role: "assistant", Content: content})
+			messages = append(messages, Message{Role: "user", Content: "Invalid coordinates format."})
+			continue
+		}
+
+		y, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err != nil {
+			messages = append(messages, Message{Role: "assistant", Content: content})
+			messages = append(messages, Message{Role: "user", Content: "Invalid coordinates format."})
+			continue
+		}
+
+		// Validation
+		errReason := ""
+		if !board.isInBounds(x, y) {
+			errReason = "out of bounds"
+		} else if board.isOccupied(x, y) {
+			errReason = "occupied"
+		} else if board.isSuicide(x, y, player) {
+			errReason = "suicide (illegal self-capture)"
+		} else if board.isKo(x, y, player) {
+			errReason = "ko rule violation (this move repeats the previous board state)"
+		}
+
+		if errReason != "" {
+			fmt.Printf("Bot illegal move: %d,%d (%s)\n", x, y, errReason)
+			messages = append(messages, Message{Role: "assistant", Content: content})
+			messages = append(messages, Message{Role: "user", Content: fmt.Sprintf("Move %d,%d is illegal (%s). Choose another move.", x, y, errReason)})
+			continue
+		}
+
+		return x, y, false, nil
 	}
 
-	var openAIResp OpenAIResponse
-	err = json.Unmarshal(body, &openAIResp)
-	if err != nil {
-		return -1, -1, false, err
-	}
-
-	if len(openAIResp.Choices) == 0 {
-		return -1, -1, false, fmt.Errorf("no response from OpenAI")
-	}
-
-	content := strings.TrimSpace(openAIResp.Choices[0].Message.Content)
-	fmt.Println(content)
-	if strings.ToLower(content) == "pass" {
-		return -1, -1, true, nil
-	}
-
-	parts := strings.Split(content, ",")
-	if len(parts) != 2 {
-		return -1, -1, false, fmt.Errorf("invalid response format: %s", content)
-	}
-
-	x, err := strconv.Atoi(strings.TrimSpace(parts[0]))
-	if err != nil {
-		return -1, -1, false, err
-	}
-
-	y, err := strconv.Atoi(strings.TrimSpace(parts[1]))
-	if err != nil {
-		return -1, -1, false, err
-	}
-
-	return x, y, false, nil
+	return -1, -1, false, fmt.Errorf("failed to find valid move after 5 attempts")
 }
