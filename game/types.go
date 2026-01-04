@@ -69,7 +69,7 @@ type Board struct {
 	Grid          [][]*Stone
 	Groups        []*Group
 	nextGroupId   int
-	currentPlayer Player
+	CurrentPlayer Player
 	PassCount     int
 	History       []string
 }
@@ -81,15 +81,20 @@ type Renderer interface {
 	GetGridPosition(x, y int) (row, col int, onBoard bool)
 }
 
+// AIPlayer interface for AI players
+type AIPlayer interface {
+	NextMove(b *Board, p Player) (x, y int, err error)
+}
+
 // Represents the struct for the game itself
 type Game struct {
 	State         GameStates
 	Renderer      Renderer
 	Board         *Board
 	Mode          GameMode
-	Difficulty    BotDifficulty
 	IsBotThinking bool
 	BotMoveChan   chan BotMoveResult
+	Bot           AIPlayer
 }
 
 type BotMoveResult struct {
@@ -102,14 +107,6 @@ const (
 	GameStateIntro GameStates = "intro"
 	GameStateGame  GameStates = "game"
 	GameStateEnd   GameStates = "end"
-)
-
-type BotDifficulty int
-
-const (
-	DifficultyEasy BotDifficulty = iota
-	DifficultyMedium
-	DifficultyHard
 )
 
 var AdjacentDirections = []struct{ dx, dy int }{

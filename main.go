@@ -29,6 +29,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/joho/godotenv"
 
+	"heia2526/gogol/ai"
 	"heia2526/gogol/game"
 	"heia2526/gogol/ui"
 )
@@ -49,6 +50,14 @@ func main() {
 
 	g := &game.Game{}
 	g.Init()
+
+	// Try to load AI model for PvE mode (non-blocking - game will handle failure gracefully)
+	model, err := ai.LoadModel("models/champion.json")
+	if err != nil {
+		log.Printf("Note: AI model not found at models/champion.json. PvE mode will not be available. Error: %v", err)
+	} else {
+		g.SetBot(ai.NewMLPPlayer(model))
+	}
 
 	renderer := ui.NewRenderer()
 	g.Renderer = renderer

@@ -44,8 +44,7 @@ const (
 	lineWidth        = 2
 	introTitle       = "GoGol"
 	PVPText          = "Press P or Space to start a PVP game"
-	PVEText          = "Press B to start a PVE game (Medium)"
-	DifficultyText   = "PvE Difficulty: 1=Easy, 2=Medium, 3=Hard"
+	PVEText          = "Press B to start a PVE game"
 	ThinkingText     = "Thinking..."
 	PassText         = "Press S to pass"
 	TitleFontSize    = 24
@@ -124,11 +123,10 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 	titleW, titleH := text.Measure(introTitle, titleFace, TitleFontSize)
 	pvpW, pvpH := text.Measure(PVPText, subtitleFace, SubTitleFontSize)
 	pveW, pveH := text.Measure(PVEText, subtitleFace, SubTitleFontSize)
-	diffW, diffH := text.Measure(DifficultyText, subtitleFace, SubTitleFontSize)
 
 	// Calculate total height and spacing
 	lineSpacing := float64(SubTitleFontSize) // Space between lines
-	totalTextHeight := titleH + pvpH + pveH + diffH + 3*lineSpacing
+	totalTextHeight := titleH + pvpH + pveH + 2*lineSpacing
 
 	// Calculate starting Y for the first text (introTitle) to center the block vertically
 	currentY := (screenHeight - totalTextHeight) / 2
@@ -155,13 +153,6 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 	op.ColorScale.ScaleWithColor(color.White)
 	text.Draw(screen, PVEText, subtitleFace, op)
 
-	currentY += pveH + lineSpacing
-
-	// Draw DifficultyText
-	op.GeoM.Reset()
-	op.GeoM.Translate((screenWidth-diffW)/2, currentY)
-	op.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, DifficultyText, subtitleFace, op)
 }
 
 func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
@@ -308,7 +299,11 @@ func (r *Renderer) drawGameOver(screen *ebiten.Image, g *game.Game) {
 	width, height := size.X, size.Y
 
 	// Draw a semi-transparent background
-	vector.DrawFilledRect(screen, float32(width/2-200), float32(height/2-50), 400, 100, color.RGBA{0, 0, 0, 180}, false)
+	rectImg := ebiten.NewImage(400, 100)
+	rectImg.Fill(color.RGBA{0, 0, 0, 180})
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(width/2-200), float64(height/2-50))
+	screen.DrawImage(rectImg, op)
 
 	ebitenutil.DebugPrintAt(screen, textStr, width/2-100, height/2-20)
 }
