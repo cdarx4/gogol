@@ -1,5 +1,6 @@
 # Go Releaser configuration for GoGol
 # This file defines how Go Releaser builds and releases the GoGol game
+version: 2
 
 project_name: gogol
 
@@ -11,8 +12,11 @@ builds:
     dir: .
     goos:
       - linux
-      - darwin
       - windows
+      # Temporarily excluding darwin (macOS) due to cross-compilation issues with Ebiten
+      # macOS builds require CGO and proper toolchains which are complex to set up in CI
+      # Users can build macOS binaries locally if needed
+      # - darwin
     goarch:
       - amd64
       - arm64
@@ -31,11 +35,11 @@ archives:
   - id: default
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
       - goos: linux
-        format: tar.gz
-      - goos: darwin
-        format: tar.gz
+        formats:
+          - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
       - README.md
@@ -68,8 +72,7 @@ changelog:
       - "^chore:"
 
 # Snapshot configuration (for testing)
-snapshot:
-  name_template: "{{ .Tag }}-next"
+# Note: name_template is deprecated in v2, using default behavior
 
 # Checksum configuration
 checksum:

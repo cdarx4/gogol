@@ -73,8 +73,8 @@ This project uses [Go Releaser](https://goreleaser.com/) to automate releases. W
 You can download pre-built binaries from the [Releases page](https://github.com/cdarx4/gogol/releases) on GitHub. Releases are available for:
 
 - **Linux** (amd64, arm64) - `.tar.gz` archive
-- **macOS** (amd64, arm64) - `.tar.gz` archive  
-- **Windows** (amd64) - `.zip` archive
+- **Windows** (amd64, arm64) - `.zip` archive
+- **macOS** - Currently not available in automated releases due to cross-compilation limitations. Build locally using `go build main.go` on macOS.
 
 Each release includes:
 - Platform-specific binaries
@@ -97,10 +97,14 @@ Each release includes:
 
 ### macOS
 
-1. Download the appropriate `.tar.gz` file for your architecture
-2. Extract the archive:
+macOS binaries are not currently included in automated releases. To build on macOS:
+
+1. Ensure you have Go installed
+2. Clone the repository and build:
    ```bash
-   tar -xzf gogol_<version>_darwin_<arch>.tar.gz
+   git clone https://github.com/cdarx4/gogol.git
+   cd gogol
+   go build -o gogol main.go
    ```
 3. Run the binary:
    ```bash
