@@ -27,9 +27,9 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/joho/godotenv"
 
 	"heia2526/gogol/ai"
+	"heia2526/gogol/assets"
 	"heia2526/gogol/game"
 	"heia2526/gogol/ui"
 )
@@ -43,18 +43,15 @@ const (
 
 // Main entry point of the program
 func main() {
-	// Try loading from .env file for local development (optional)
-	// This will be ignored if the file doesn't exist (e.g., in WASM or CI)
-	// Environment variables can be set directly or via system env vars
-	_ = godotenv.Load() // Silently ignore if .env file doesn't exist
 
 	g := &game.Game{}
 	g.Init()
 
-	// Try to load AI model for PvE mode (non-blocking - game will handle failure gracefully)
-	model, err := ai.LoadModel("models/champion.json")
+	// Load AI model from embedded assets for PvE mode (WASM compatible)
+	// Non-blocking - game will handle failure gracefully
+	model, err := ai.LoadModelFromBytes(assets.ChampionModelJSON)
 	if err != nil {
-		log.Printf("Note: AI model not found at models/champion.json. PvE mode will not be available. Error: %v", err)
+		log.Printf("Note: Failed to load embedded AI model. PvE mode will not be available. Error: %v", err)
 	} else {
 		g.SetBot(ai.NewMLPPlayer(model))
 	}

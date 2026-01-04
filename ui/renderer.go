@@ -24,10 +24,9 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
-
-	"bytes"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -35,6 +34,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
+	"heia2526/gogol/assets"
 	"heia2526/gogol/game"
 )
 
@@ -63,15 +63,17 @@ type Renderer struct {
 }
 
 func NewRenderer() *Renderer {
-	black, _, err := ebitenutil.NewImageFromFile("images/black-stone.png")
+	// Load images from embedded assets (WASM compatible)
+	black, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.BlackStonePNG))
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to load embedded black stone: %w", err))
 	}
-	white, _, err := ebitenutil.NewImageFromFile("images/white-stone.png")
+	white, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.WhiteStonePNG))
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to load embedded white stone: %w", err))
 	}
 
+	// Load font face source
 	s, err := text.NewGoTextFaceSource(bytes.NewReader(fonts.PressStart2P_ttf))
 	if err != nil {
 		panic(err)

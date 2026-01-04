@@ -51,6 +51,11 @@ func LoadModel(path string) (*MLP, error) {
 		return nil, fmt.Errorf("failed to read model file: %w", err)
 	}
 
+	return LoadModelFromBytes(jsonData)
+}
+
+// LoadModelFromBytes loads an MLP from embedded JSON data (WASM compatible)
+func LoadModelFromBytes(jsonData []byte) (*MLP, error) {
 	var data ModelData
 	if err := json.Unmarshal(jsonData, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal model: %w", err)

@@ -4,7 +4,6 @@ go 1.24.0
 
 require (
 	github.com/hajimehoshi/ebiten/v2 v2.9.4
-	github.com/joho/godotenv v1.5.1
 )
 
 require (
