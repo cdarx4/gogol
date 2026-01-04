@@ -1,66 +1,70 @@
-# gogol
-The game of GO in Golang
+# GoGol
 
-# Go rules
+A Go game implementation in Go, developed as part of the course "Programmation élégante en Go" at the Haute école d'ingénierie et d'architecture de Fribourg (HEIA-FR).
 
-We will base our game on those go rules :
+## Authors
 
-![Go rules image](images/go-rules.webp)
+- **Ding Lionel** - lionel.ding@hes-so.ch
+- **Darx Christian** - christia.darx@hes-so.ch
 
-This image was taken from : https://www.reddit.com/r/baduk/comments/vn936i/i_have_created_an_image_to_help_you_understand/
+## Description
 
+GoGol is an implementation of the board game Go (also known as Baduk) featuring:
 
-# TODO
+- Complete game logic with stone placement, group management, and liberty tracking
+- Player versus Player (PvP) and Player versus Environment (PvE) game modes
+- AI opponent powered by a Multi-Layer Perceptron (MLP) neural network
+- Graphical user interface built with Ebiten
+- WebAssembly support for browser-based gameplay
 
-[ ] Optimize the group merging
-[ ] Add the KO rule detection using the zobrist hash
-[ ] Add the winning condition (to be determined)
-[ ] Add more depth to the OpenAI query like the difficulty, ...
-[ ] Make the interface more beautiful
-[ ] Add the pipeline in Github for tests, linting, ...
-[ ] Publish on the github pages
-[ ] add the embed for images
+## Go Rules
 
-# Project structure
+The game follows the standard rules of Go. The following image provides an overview of the basic rules:
 
-In this project, there are multiple packages that each serve a distinct purpose :
+![Go rules](assets/images/go-rules.webp)
 
-- game : Manages the game logic with the board, the stones, ...
-- renderer : Manages the rendering of the game
-- bot : Manages the bot that plays against the player
-- main : Entry point of the application
+## Project Structure
 
-## Game
+```
+gogol/
+├── ai/          # AI player implementation and MLP neural network
+├── assets/      # Embedded game assets (images, models)
+├── game/        # Core game logic (board, groups, rules)
+├── ui/          # User interface and rendering
+└── main.go      # Application entry point
+```
 
-In the game package, we've split the logic into multiple files :
+## Prerequisites
 
-- board : this file manages the board and how the stones are placed on it. This means that it handles the placement of the stones, the groups, the liberties AND handles the group deletion when a group has no liberties left.
-- game : this file is a sort of controller that makes the link between the board and the renderer. It is responsible for updating the board and the renderer when a stone is placed. It doesn't handle the stones, groups, liberties, ...
-- types : this files defines the types used in the game like the stones, the groups, the player, ... (the board type is defined in the board.go file)
+- Go 1.24.0 or later
+- Git (for cloning the repository)
 
-## Renderer
+## Building and Running
 
-The renderer package is responsible for rendering the game. It uses the ebiten library to render the game.
-
-## Bot
-
-The bot package is responsible for playing against the player. It uses the OpenAI API to get the next move. It sends the full board as text to the API and gets the coordinates of the next move.
-
-# How to run the game
-
-To run the game, you need to have go installed on your system.
-
-Then, you can run the game by running the following command :
+### From Source
 
 ```bash
+# Clone the repository
+git clone https://github.com/cdarx4/gogol
+cd gogol
+
+# Run the game
 go run main.go
+
+# Build the executable
+go build -o gogol main.go
 ```
 
-# How to build the game
-
-To build the game, you can run the following command :
+### Running Tests
 
 ```bash
-go build main.go
+go test ./...
 ```
 
+## Dependencies
+
+- [Ebiten v2](https://github.com/hajimehoshi/ebiten) - 2D game library for Go
+
+## License
+
+This project is licensed under the Apache License 2.0. See the file headers in the source code for details.

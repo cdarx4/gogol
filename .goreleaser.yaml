@@ -1,0 +1,76 @@
+# Go Releaser configuration for GoGol
+# This file defines how Go Releaser builds and releases the GoGol game
+version: 2
+
+project_name: gogol
+
+# Build configuration
+builds:
+  - id: gogol
+    main: .
+    binary: gogol
+    dir: .
+    goos:
+      - linux
+      - windows
+      # Temporarily excluding darwin (macOS) due to cross-compilation issues with Ebiten
+      # macOS builds require CGO and proper toolchains which are complex to set up in CI
+      # Users can build macOS binaries locally if needed
+      # - darwin
+    goarch:
+      - amd64
+      # Temporarily excluding arm64 due to Ebiten v2.9.4 cross-compilation issues
+      # Linux ARM64 and Windows ARM64 builds fail with GLFW/OpenGL driver errors
+      # Users can build ARM64 binaries locally if needed
+      # - arm64
+    # Ebiten v2 uses purego and doesn't require CGO for most platforms
+    # CGO is only needed for specific features, so we'll let it default
+    # env:
+    #   - CGO_ENABLED=1
+    # Build flags for optimization
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+# Archive configuration
+archives:
+  - id: default
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+      - goos: linux
+        formats:
+          - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+      - README.md
+      - "*.md"
+
+# Release configuration
+release:
+  github:
+    owner: cdarx4
+    name: gogol
+  # Generate changelog from git commits
+
+# Changelog configuration
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+# Snapshot configuration (for testing)
+# Note: name_template is deprecated in v2, using default behavior
+
+# Checksum configuration
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+#       - libXxf86vm
+

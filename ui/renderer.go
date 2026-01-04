@@ -39,9 +39,12 @@ import (
 )
 
 const (
+	// Board sizing/layout constants
 	cellSize         = 60
 	boardMargin      = 50
 	lineWidth        = 2
+
+	// UI text and font sizes
 	introTitle       = "GoGol"
 	PVPText          = "Press P or Space to start a PVP game"
 	PVEText          = "Press B to start a PVE game"
@@ -49,6 +52,17 @@ const (
 	PassText         = "Press S to pass"
 	TitleFontSize    = 24
 	SubTitleFontSize = 12
+
+	// Stone rendering constants
+	stoneScaleFactor = 0.9
+
+	// Star point (hoshi) rendering constants
+	starPointRadius = 4
+
+	// Game over overlay constants
+	gameOverRectWidth  = 400
+	gameOverRectHeight = 100
+	gameOverAlpha      = 180
 )
 
 var (
@@ -57,61 +71,70 @@ var (
 	mplusFaceSource *text.GoTextFaceSource
 )
 
+// Renderer handles all rendering operations for the game.
 type Renderer struct {
+	// BlackStone is the image used for black stones.
 	BlackStone *ebiten.Image
+	// WhiteStone is the image used for white stones.
 	WhiteStone *ebiten.Image
 }
 
+// NewRenderer creates and initializes a new renderer with loaded stone images and fonts.
 func NewRenderer() *Renderer {
-	// Load images from embedded assets (WASM compatible)
-	black, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.BlackStonePNG))
+	// Load black stone image from embedded assets
+	blackStoneImage, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.BlackStonePNG))
 	if err != nil {
 		panic(fmt.Errorf("failed to load embedded black stone: %w", err))
 	}
-	white, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.WhiteStonePNG))
+
+	// Load white stone image from embedded assets
+	whiteStoneImage, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.WhiteStonePNG))
 	if err != nil {
 		panic(fmt.Errorf("failed to load embedded white stone: %w", err))
 	}
 
-	// Load font face source
-	s, err := text.NewGoTextFaceSource(bytes.NewReader(fonts.PressStart2P_ttf))
+	// Load font face source for text rendering
+	fontFaceSource, err := text.NewGoTextFaceSource(bytes.NewReader(fonts.PressStart2P_ttf))
 	if err != nil {
 		panic(err)
 	}
-	mplusFaceSource = s
+	mplusFaceSource = fontFaceSource
 
 	return &Renderer{
-		BlackStone: black,
-		WhiteStone: white,
+		BlackStone: blackStoneImage,
+		WhiteStone: whiteStoneImage,
 	}
 }
 
-func (r *Renderer) Draw(screen *ebiten.Image, g *game.Game) {
-	switch g.State {
+// Draw draws the game based on its current state.
+func (r *Renderer) Draw(screen *ebiten.Image, currentGame *game.Game) {
+	switch currentGame.State {
 	case game.GameStateIntro:
 		r.drawIntro(screen)
 	case game.GameStateGame:
-		r.drawBoard(screen, g)
+		r.drawBoard(screen, currentGame)
 	case game.GameStateEnd:
-		r.drawBoard(screen, g)
-		r.drawGameOver(screen, g)
+		r.drawBoard(screen, currentGame)
+		r.drawGameOver(screen, currentGame)
 	}
 }
 
+// Layout returns the logical screen size for the game.
 func (r *Renderer) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	boardWidth := (game.BoardSize-1)*cellSize + boardMargin*2
 	boardHeight := (game.BoardSize-1)*cellSize + boardMargin*2
 	return boardWidth, boardHeight
 }
 
+// drawIntro draws the introduction screen.
 func (r *Renderer) drawIntro(screen *ebiten.Image) {
-	// Fill background
+	// Fill the background with the board color
 	screen.Fill(boardColor)
 
-	size := screen.Bounds().Size()
-	screenWidth, screenHeight := float64(size.X), float64(size.Y)
+	screenSize := screen.Bounds().Size()
+	screenWidth, screenHeight := float64(screenSize.X), float64(screenSize.Y)
 
-	// Define text faces
+	// Set up the text faces for title and subtitles
 	titleFace := &text.GoTextFace{
 		Source: mplusFaceSource,
 		Size:   TitleFontSize,
@@ -121,191 +144,190 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 		Size:   SubTitleFontSize,
 	}
 
-	// Measure text bounds
-	titleW, titleH := text.Measure(introTitle, titleFace, TitleFontSize)
-	pvpW, pvpH := text.Measure(PVPText, subtitleFace, SubTitleFontSize)
-	pveW, pveH := text.Measure(PVEText, subtitleFace, SubTitleFontSize)
+	// Measure how big each text will be
+	titleWidth, titleHeight := text.Measure(introTitle, titleFace, TitleFontSize)
+	pvpWidth, pvpHeight := text.Measure(PVPText, subtitleFace, SubTitleFontSize)
+	pveWidth, pveHeight := text.Measure(PVEText, subtitleFace, SubTitleFontSize)
 
-	// Calculate total height and spacing
-	lineSpacing := float64(SubTitleFontSize) // Space between lines
-	totalTextHeight := titleH + pvpH + pveH + 2*lineSpacing
-
-	// Calculate starting Y for the first text (introTitle) to center the block vertically
+	// Calculate spacing and total height to center everything vertically
+	lineSpacing := float64(SubTitleFontSize)
+	totalTextHeight := titleHeight + pvpHeight + pveHeight + 2*lineSpacing
 	currentY := (screenHeight - totalTextHeight) / 2
 
-	// Draw introTitle
-	op := &text.DrawOptions{}
-	op.GeoM.Translate((screenWidth-titleW)/2, currentY)
-	op.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, introTitle, titleFace, op)
+	// Draw the title centered
+	textOptions := &text.DrawOptions{}
+	textOptions.GeoM.Translate((screenWidth-titleWidth)/2, currentY)
+	textOptions.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, introTitle, titleFace, textOptions)
 
-	currentY += titleH + lineSpacing
+	currentY += titleHeight + lineSpacing
 
-	// Draw PVPText
-	op.GeoM.Reset()
-	op.GeoM.Translate((screenWidth-pvpW)/2, currentY)
-	op.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, PVPText, subtitleFace, op)
+	// Draw the PVP option text
+	textOptions.GeoM.Reset()
+	textOptions.GeoM.Translate((screenWidth-pvpWidth)/2, currentY)
+	textOptions.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, PVPText, subtitleFace, textOptions)
 
-	currentY += pvpH + lineSpacing
+	currentY += pvpHeight + lineSpacing
 
-	// Draw PVEText
-	op.GeoM.Reset()
-	op.GeoM.Translate((screenWidth-pveW)/2, currentY)
-	op.ColorScale.ScaleWithColor(color.White)
-	text.Draw(screen, PVEText, subtitleFace, op)
-
+	// Draw the PVE option text
+	textOptions.GeoM.Reset()
+	textOptions.GeoM.Translate((screenWidth-pveWidth)/2, currentY)
+	textOptions.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, PVEText, subtitleFace, textOptions)
 }
 
-func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
-	// Fill background with board color (light beige/wood)
+// drawBoard draws the game board with grid lines, star points, stones, and UI text.
+func (r *Renderer) drawBoard(screen *ebiten.Image, currentGame *game.Game) {
+	// Fill the background with the board color
 	screen.Fill(boardColor)
-	// Calculate board dimensions
+
+	// Calculate where the board starts and its dimensions
 	boardWidth := (game.BoardSize - 1) * cellSize
 	boardHeight := (game.BoardSize - 1) * cellSize
 	startX := float32(boardMargin)
 	startY := float32(boardMargin)
 
-	// Draw vertical lines
-	for i := 0; i < game.BoardSize; i++ {
-		x := startX + float32(i*cellSize)
-		vector.StrokeLine(screen, x, startY, x, startY+float32(boardHeight), lineWidth, lineColor, false)
+	// Draw all the vertical grid lines
+	for columnIndex := 0; columnIndex < game.BoardSize; columnIndex++ {
+		lineX := startX + float32(columnIndex*cellSize)
+		vector.StrokeLine(screen, lineX, startY, lineX, startY+float32(boardHeight), lineWidth, lineColor, false)
 	}
 
-	// Draw horizontal lines
-	for i := 0; i < game.BoardSize; i++ {
-		y := startY + float32(i*cellSize)
-		vector.StrokeLine(screen, startX, y, startX+float32(boardWidth), y, lineWidth, lineColor, false)
+	// Draw all the horizontal grid lines
+	for rowIndex := 0; rowIndex < game.BoardSize; rowIndex++ {
+		lineY := startY + float32(rowIndex*cellSize)
+		vector.StrokeLine(screen, startX, lineY, startX+float32(boardWidth), lineY, lineWidth, lineColor, false)
 	}
 
-	// Draw star points (hoshi)
+	// Draw the star points (hoshi) at the standard positions
 	starPoints := [][]int{
 		{2, 2}, {2, 6},
 		{6, 2}, {6, 6},
 		{4, 4},
 	}
-	starRadius := float32(4)
 	for _, point := range starPoints {
-		x := startX + float32(point[0]*cellSize)
-		y := startY + float32(point[1]*cellSize)
-		vector.FillCircle(screen, x, y, starRadius, lineColor, false)
+		starX := startX + float32(point[0]*cellSize)
+		starY := startY + float32(point[1]*cellSize)
+		vector.FillCircle(screen, starX, starY, starPointRadius, lineColor, false)
 	}
 
-	// Draw stones
-	if g.Board != nil {
-		for i := 0; i < game.BoardSize; i++ {
-			for j := 0; j < game.BoardSize; j++ {
-				stone := g.Board.Grid[i][j]
+	// Draw all the stones on the board
+	if currentGame.Board != nil {
+		for x := 0; x < game.BoardSize; x++ {
+			for y := 0; y < game.BoardSize; y++ {
+				stone := currentGame.Board.Grid[x][y]
 				if stone != nil {
-					x := float64(startX) + float64(i*cellSize)
-					y := float64(startY) + float64(j*cellSize)
+					stoneX := float64(startX) + float64(x*cellSize)
+					stoneY := float64(startY) + float64(y*cellSize)
 
-					var img *ebiten.Image
+					// Choose the right stone image based on player
+					var stoneImage *ebiten.Image
 					if stone.Player == game.PlayerBlack {
-						img = r.BlackStone
+						stoneImage = r.BlackStone
 					} else {
-						img = r.WhiteStone
+						stoneImage = r.WhiteStone
 					}
 
-					if img != nil {
-						op := &ebiten.DrawImageOptions{}
-						// Center the image
-						size := img.Bounds().Size()
-						width, height := size.X, size.Y
-						// Scale to fit cellSize (slightly smaller)
-						scale := float64(cellSize) * 0.9 / float64(width)
-						op.GeoM.Scale(scale, scale)
-						// Center the image on the corss section
-						op.GeoM.Translate(x-float64(width)*scale/2, y-float64(height)*scale/2)
+					// Draw the stone image if we have it
+					if stoneImage != nil {
+						drawOptions := &ebiten.DrawImageOptions{}
+						imageSize := stoneImage.Bounds().Size()
+						imageWidth, imageHeight := imageSize.X, imageSize.Y
 
-						screen.DrawImage(img, op)
+						// Scale the image to fit nicely in the cell
+						scale := float64(cellSize) * stoneScaleFactor / float64(imageWidth)
+						drawOptions.GeoM.Scale(scale, scale)
+
+						// Center the image on the intersection
+						drawOptions.GeoM.Translate(stoneX-float64(imageWidth)*scale/2, stoneY-float64(imageHeight)*scale/2)
+
+						screen.DrawImage(stoneImage, drawOptions)
 					} else {
-						// Fallback if image load failed (shouldn't happen with NewRenderer panic)
-						radius := float32(cellSize) / 2 * 0.9
-						var c color.Color
+						// Fallback: draw a circle if image loading failed
+						radius := float32(cellSize) / 2 * stoneScaleFactor
+						var stoneColor color.Color
 						if stone.Player == game.PlayerBlack {
-							c = color.Black
+							stoneColor = color.Black
 						} else {
-							c = color.White
+							stoneColor = color.White
 						}
-						vector.FillCircle(screen, float32(x), float32(y), radius, c, true)
+						vector.FillCircle(screen, float32(stoneX), float32(stoneY), radius, stoneColor, true)
 					}
 				}
 			}
 		}
 	}
 
-	if g.IsBotThinking {
-		size := screen.Bounds().Size()
-		width, height := size.X, size.Y
-		ebitenutil.DebugPrintAt(screen, ThinkingText, width/2-30, height-20)
+	// Show UI text at the bottom of the screen
+	screenSize := screen.Bounds().Size()
+	screenWidth, screenHeight := screenSize.X, screenSize.Y
+
+	if currentGame.IsBotThinking {
+		ebitenutil.DebugPrintAt(screen, ThinkingText, screenWidth/2-30, screenHeight-20)
 	} else {
-		// Show pass instruction if it's not bot thinking (and implicitly it's a human turn)
-		// We could be more specific (only if current player is human), but for now this is fine.
-		size := screen.Bounds().Size()
-		width, height := size.X, size.Y
-		// Draw it slightly above bottom or in a corner. Let's put it top left or bottom left.
-		// For consistency with DebugPrintAt which is simple, let's use it.
-		// width/2 - 40 to center roughly? "Press S to pass" is about 15 chars.
-		ebitenutil.DebugPrintAt(screen, PassText, width/2-50, height-20)
+		ebitenutil.DebugPrintAt(screen, PassText, screenWidth/2-50, screenHeight-20)
 	}
 }
 
-func (r *Renderer) GetGridPosition(x, y int) (row, col int, onBoard bool) {
-	// Calculate board dimensions
+// GetGridPosition converts screen coordinates to board grid coordinates.
+func (r *Renderer) GetGridPosition(screenX, screenY int) (gridX, gridY int, onBoard bool) {
+	// Figure out where the board starts
 	startX := boardMargin
 	startY := boardMargin
 
-	// Check if click is within reasonable bounds of the board
-	// We allow some margin around the board for clicking
+	// Calculate the board's actual size
 	boardWidth := (game.BoardSize - 1) * cellSize
 	boardHeight := (game.BoardSize - 1) * cellSize
 
-	if x < startX-cellSize/2 || x > startX+boardWidth+cellSize/2 ||
-		y < startY-cellSize/2 || y > startY+boardHeight+cellSize/2 {
+	// Check if the click is anywhere near the board (with some margin for easier clicking)
+	if screenX < startX-cellSize/2 || screenX > startX+boardWidth+cellSize/2 ||
+		screenY < startY-cellSize/2 || screenY > startY+boardHeight+cellSize/2 {
 		return 0, 0, false
 	}
 
-	// Calculate nearest intersection
-	// (x - startX) / cellSize
-	// We want to round to the nearest integer
+	// Convert screen coordinates to grid coordinates by rounding to nearest intersection
+	floatX := float64(screenX - startX)
+	floatY := float64(screenY - startY)
 
-	fx := float64(x - startX)
-	fy := float64(y - startY)
+	gridX = int((floatX + float64(cellSize)/2) / float64(cellSize))
+	gridY = int((floatY + float64(cellSize)/2) / float64(cellSize))
 
-	ix := int((fx + float64(cellSize)/2) / float64(cellSize))
-	iy := int((fy + float64(cellSize)/2) / float64(cellSize))
-
-	if ix >= 0 && ix < game.BoardSize && iy >= 0 && iy < game.BoardSize {
-		return ix, iy, true
+	// Make sure the coordinates are actually on the board
+	if gridX >= 0 && gridX < game.BoardSize && gridY >= 0 && gridY < game.BoardSize {
+		return gridX, gridY, true
 	}
 
 	return 0, 0, false
 }
 
-func (r *Renderer) drawGameOver(screen *ebiten.Image, g *game.Game) {
-	winner, isDraw := g.Board.GetWinner()
-	black, white := g.Board.GetStoneCount()
+// drawGameOver draws the game over overlay with winner information.
+func (r *Renderer) drawGameOver(screen *ebiten.Image, currentGame *game.Game) {
+	winner, isDraw := currentGame.Board.GetWinner()
+	blackCount, whiteCount := currentGame.Board.GetStoneCount()
 
-	var textStr string
+	// Build the message based on who won
+	var messageText string
 	if isDraw {
-		textStr = fmt.Sprintf("Draw! Black: %d, White: %d", black, white)
+		messageText = fmt.Sprintf("Draw! Black: %d, White: %d", blackCount, whiteCount)
 	} else if *winner == game.PlayerBlack {
-		textStr = fmt.Sprintf("Black Wins! Black: %d, White: %d", black, white)
+		messageText = fmt.Sprintf("Black Wins! Black: %d, White: %d", blackCount, whiteCount)
 	} else {
-		textStr = fmt.Sprintf("White Wins! Black: %d, White: %d", black, white)
+		messageText = fmt.Sprintf("White Wins! Black: %d, White: %d", blackCount, whiteCount)
 	}
-	textStr += "\nPress Space to Restart"
+	messageText += "\nPress Space to Restart"
 
-	size := screen.Bounds().Size()
-	width, height := size.X, size.Y
+	// Get screen dimensions to center the overlay
+	screenSize := screen.Bounds().Size()
+	screenWidth, screenHeight := screenSize.X, screenSize.Y
 
-	// Draw a semi-transparent background
-	rectImg := ebiten.NewImage(400, 100)
-	rectImg.Fill(color.RGBA{0, 0, 0, 180})
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(width/2-200), float64(height/2-50))
-	screen.DrawImage(rectImg, op)
+	// Draw a semi-transparent black background for the overlay
+	overlayImage := ebiten.NewImage(gameOverRectWidth, gameOverRectHeight)
+	overlayImage.Fill(color.RGBA{0, 0, 0, gameOverAlpha})
+	drawOptions := &ebiten.DrawImageOptions{}
+	drawOptions.GeoM.Translate(float64(screenWidth/2-gameOverRectWidth/2), float64(screenHeight/2-gameOverRectHeight/2))
+	screen.DrawImage(overlayImage, drawOptions)
 
-	ebitenutil.DebugPrintAt(screen, textStr, width/2-100, height/2-20)
+	// Draw the message text centered on the overlay
+	ebitenutil.DebugPrintAt(screen, messageText, screenWidth/2-100, screenHeight/2-20)
 }

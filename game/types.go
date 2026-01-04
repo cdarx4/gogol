@@ -26,36 +26,43 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// Represents the different states of the game
+// GameStates represents the different states of the game.
 type GameStates string
 
 // GameMode represents the mode of the game (PvP or PvE)
 type GameMode int
 
 const (
+	// GameModePvP is player versus player mode.
 	GameModePvP GameMode = iota
+	// GameModePvE is player versus environment (AI) mode.
 	GameModePvE
 )
 
-// Represents the different players
+// Player represents the different players in the game.
 type Player int
 
 const (
+	// PlayerBlack represents the black player.
 	PlayerBlack Player = iota
+	// PlayerWhite represents the white player.
 	PlayerWhite
 )
 
+// StartingPlayer is the player who moves first.
 const StartingPlayer = PlayerBlack
+
+// BoardSize is the default size of the game board.
 const BoardSize = 9
 
-// Represents a stone on the board
+// Stone represents a stone on the board.
 type Stone struct {
 	X, Y   int
 	Player Player
 	Group  *Group
 }
 
-// Represents a connected group of stones
+// Group represents a connected group of stones.
 type Group struct {
 	ID        int
 	Player    Player
@@ -63,30 +70,30 @@ type Group struct {
 	Liberties map[[2]int]struct{}
 }
 
-// Represents the board
+// Board represents the game board.
 type Board struct {
 	Size          int
 	Grid          [][]*Stone
 	Groups        []*Group
-	nextGroupId   int
+	nextGroupID   int
 	CurrentPlayer Player
 	PassCount     int
 	History       []string
 }
 
-// Renderer interface for the game
+// Renderer is the interface for rendering the game.
 type Renderer interface {
 	Draw(screen *ebiten.Image, game *Game)
 	Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int)
-	GetGridPosition(x, y int) (row, col int, onBoard bool)
+	GetGridPosition(x, y int) (gridX, gridY int, onBoard bool)
 }
 
-// AIPlayer interface for AI players
+// AIPlayer is the interface for AI players.
 type AIPlayer interface {
 	NextMove(b *Board, p Player) (x, y int, err error)
 }
 
-// Represents the struct for the game itself
+// Game represents the game state and logic.
 type Game struct {
 	State         GameStates
 	Renderer      Renderer
@@ -97,6 +104,7 @@ type Game struct {
 	Bot           AIPlayer
 }
 
+// BotMoveResult represents the result of a bot's move calculation.
 type BotMoveResult struct {
 	X, Y int
 	Pass bool
@@ -104,15 +112,24 @@ type BotMoveResult struct {
 }
 
 const (
+	// GameStateIntro is the initial state of the game.
 	GameStateIntro GameStates = "intro"
-	GameStateGame  GameStates = "game"
-	GameStateEnd   GameStates = "end"
+	// GameStateGame is the state when the game is in progress.
+	GameStateGame GameStates = "game"
+	// GameStateEnd is the state when the game has ended.
+	GameStateEnd GameStates = "end"
 )
 
-var AdjacentDirections = []struct{ dx, dy int }{
+// Direction represents a direction vector for adjacent positions
+type Direction struct {
+	DeltaX, DeltaY int
+}
+
+var AdjacentDirections = []Direction{
 	{-1, 0}, {1, 0}, {0, -1}, {0, 1},
 }
 
+// Opponent returns the opponent of the current player.
 func (p Player) Opponent() Player {
 	if p == PlayerBlack {
 		return PlayerWhite

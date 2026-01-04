@@ -27,64 +27,64 @@ import "testing"
 
 // --- Helpers ---
 
-func mustPlace(t *testing.T, b *Board, x, y int) {
+func mustPlace(t *testing.T, board *Board, x, y int) {
 	t.Helper()
-	if ok := b.PlaceStone(x, y); !ok {
-		t.Fatalf("expected PlaceStone(%d,%d) to succeed\nboard:\n%s", x, y, b.String())
+	if ok := board.PlaceStone(x, y); !ok {
+		t.Fatalf("expected PlaceStone(%d,%d) to succeed\nboard:\n%s", x, y, board.String())
 	}
 }
 
-func mustFail(t *testing.T, b *Board, x, y int) {
+func mustFail(t *testing.T, board *Board, x, y int) {
 	t.Helper()
-	if ok := b.PlaceStone(x, y); ok {
-		t.Fatalf("expected PlaceStone(%d,%d) to fail\nboard:\n%s", x, y, b.String())
+	if ok := board.PlaceStone(x, y); ok {
+		t.Fatalf("expected PlaceStone(%d,%d) to fail\nboard:\n%s", x, y, board.String())
 	}
 }
 
-func assertAt(t *testing.T, b *Board, x, y int, want *Player) {
+func assertAt(t *testing.T, board *Board, x, y int, expectedPlayer *Player) {
 	t.Helper()
-	s := b.Grid[x][y]
-	if want == nil {
-		if s != nil {
-			t.Fatalf("expected empty at (%d,%d), got %v\nboard:\n%s", x, y, s.Player, b.String())
+	stone := board.Grid[x][y]
+	if expectedPlayer == nil {
+		if stone != nil {
+			t.Fatalf("expected empty at (%d,%d), got %v\nboard:\n%s", x, y, stone.Player, board.String())
 		}
 		return
 	}
-	if s == nil {
-		t.Fatalf("expected stone at (%d,%d), got empty\nboard:\n%s", x, y, b.String())
+	if stone == nil {
+		t.Fatalf("expected stone at (%d,%d), got empty\nboard:\n%s", x, y, board.String())
 	}
-	if s.Player != *want {
-		t.Fatalf("expected %v at (%d,%d), got %v\nboard:\n%s", *want, x, y, s.Player, b.String())
+	if stone.Player != *expectedPlayer {
+		t.Fatalf("expected %v at (%d,%d), got %v\nboard:\n%s", *expectedPlayer, x, y, stone.Player, board.String())
 	}
 }
 
-func assertSingleGroupAt(t *testing.T, b *Board, coords ...[2]int) {
+func assertSingleGroupAt(t *testing.T, board *Board, coords ...[2]int) {
 	t.Helper()
 	if len(coords) == 0 {
 		t.Fatal("assertSingleGroupAt needs coords")
 	}
-	first := b.Grid[coords[0][0]][coords[0][1]]
-	if first == nil || first.Group == nil {
-		t.Fatalf("expected stone+group at %v\nboard:\n%s", coords[0], b.String())
+	firstStone := board.Grid[coords[0][0]][coords[0][1]]
+	if firstStone == nil || firstStone.Group == nil {
+		t.Fatalf("expected stone+group at %v\nboard:\n%s", coords[0], board.String())
 	}
-	gid := first.Group.ID
-	for _, c := range coords[1:] {
-		s := b.Grid[c[0]][c[1]]
-		if s == nil || s.Group == nil || s.Group.ID != gid {
-			t.Fatalf("expected %v to be in same group as %v\nboard:\n%s", c, coords[0], b.String())
+	expectedGroupID := firstStone.Group.ID
+	for _, coord := range coords[1:] {
+		stone := board.Grid[coord[0]][coord[1]]
+		if stone == nil || stone.Group == nil || stone.Group.ID != expectedGroupID {
+			t.Fatalf("expected %v to be in same group as %v\nboard:\n%s", coord, coords[0], board.String())
 		}
 	}
 }
 
-func assertGroupLiberties(t *testing.T, b *Board, x, y int, want int) {
+func assertGroupLiberties(t *testing.T, board *Board, x, y int, expectedLibertyCount int) {
 	t.Helper()
-	s := b.Grid[x][y]
-	if s == nil || s.Group == nil {
-		t.Fatalf("expected stone+group at (%d,%d)\nboard:\n%s", x, y, b.String())
+	stone := board.Grid[x][y]
+	if stone == nil || stone.Group == nil {
+		t.Fatalf("expected stone+group at (%d,%d)\nboard:\n%s", x, y, board.String())
 	}
-	got := len(s.Group.Liberties)
-	if got != want {
-		t.Fatalf("expected group liberties=%d at (%d,%d), got %d\nboard:\n%s", want, x, y, got, b.String())
+	actualLibertyCount := len(stone.Group.Liberties)
+	if actualLibertyCount != expectedLibertyCount {
+		t.Fatalf("expected group liberties=%d at (%d,%d), got %d\nboard:\n%s", expectedLibertyCount, x, y, actualLibertyCount, board.String())
 	}
 }
 
@@ -100,10 +100,10 @@ func TestPlaceStone_ValidFirstMove(t *testing.T) {
 }
 
 func TestPlaceStone_OutOfBoundsRejected(t *testing.T) {
-	b := NewBoard(9)
-	cases := [][2]int{{-1, 0}, {0, -1}, {9, 0}, {0, 9}, {100, 100}}
-	for _, c := range cases {
-		mustFail(t, b, c[0], c[1])
+	board := NewBoard(9)
+	testCases := [][2]int{{-1, 0}, {0, -1}, {9, 0}, {0, 9}, {100, 100}}
+	for _, testCase := range testCases {
+		mustFail(t, board, testCase[0], testCase[1])
 	}
 }
 
@@ -118,17 +118,17 @@ func TestPlaceStone_OccupiedRejected(t *testing.T) {
 // ------------------------------------------------------------
 
 func TestPlaceStone_TurnAlternates(t *testing.T) {
-	b := NewBoard(9)
+	board := NewBoard(9)
 
-	mustPlace(t, b, 0, 0) // B
-	mustPlace(t, b, 0, 1) // W
-	mustPlace(t, b, 0, 2) // B
+	mustPlace(t, board, 0, 0) // B
+	mustPlace(t, board, 0, 1) // W
+	mustPlace(t, board, 0, 2) // B
 
-	wantB := PlayerBlack
-	wantW := PlayerWhite
-	assertAt(t, b, 0, 0, &wantB)
-	assertAt(t, b, 0, 1, &wantW)
-	assertAt(t, b, 0, 2, &wantB)
+	expectedBlack := PlayerBlack
+	expectedWhite := PlayerWhite
+	assertAt(t, board, 0, 0, &expectedBlack)
+	assertAt(t, board, 0, 1, &expectedWhite)
+	assertAt(t, board, 0, 2, &expectedBlack)
 }
 
 // ------------------------------------------------------------
@@ -136,33 +136,33 @@ func TestPlaceStone_TurnAlternates(t *testing.T) {
 // ------------------------------------------------------------
 
 func TestGroups_MergeFriendlyGroupsThroughBridge(t *testing.T) {
-	b := NewBoard(9)
+	board := NewBoard(9)
 
 	// Build:
 	// B . B   (row 0)
 	// then bridge at (1,0)
-	mustPlace(t, b, 0, 0) // B
-	mustPlace(t, b, 8, 8) // W (far)
-	mustPlace(t, b, 2, 0) // B
-	mustPlace(t, b, 8, 7) // W (far)
-	mustPlace(t, b, 1, 0) // B bridges
+	mustPlace(t, board, 0, 0) // B
+	mustPlace(t, board, 8, 8) // W (far)
+	mustPlace(t, board, 2, 0) // B
+	mustPlace(t, board, 8, 7) // W (far)
+	mustPlace(t, board, 1, 0) // B bridges
 
-	assertSingleGroupAt(t, b, [2]int{0, 0}, [2]int{1, 0}, [2]int{2, 0})
+	assertSingleGroupAt(t, board, [2]int{0, 0}, [2]int{1, 0}, [2]int{2, 0})
 }
 
 func TestGroups_UniqueLibertiesNotDoubleCounted(t *testing.T) {
-	b := NewBoard(9)
+	board := NewBoard(9)
 
 	// Make a 2-stone vertical black group at (4,4) and (4,5).
 	// Liberties should be 6 (not 8):
 	// (4,4) has 4 liberties, (4,5) has 4, but they share (4,4)/(4,5) adjacency not a liberty,
 	// and they also share none as liberties; actual unique empties = 6.
-	mustPlace(t, b, 4, 4) // B
-	mustPlace(t, b, 8, 8) // W far
-	mustPlace(t, b, 4, 5) // B
+	mustPlace(t, board, 4, 4) // B
+	mustPlace(t, board, 8, 8) // W far
+	mustPlace(t, board, 4, 5) // B
 
-	assertSingleGroupAt(t, b, [2]int{4, 4}, [2]int{4, 5})
-	assertGroupLiberties(t, b, 4, 4, 6)
+	assertSingleGroupAt(t, board, [2]int{4, 4}, [2]int{4, 5})
+	assertGroupLiberties(t, board, 4, 4, 6)
 }
 
 // ------------------------------------------------------------

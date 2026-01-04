@@ -28,45 +28,45 @@ import (
 )
 
 func TestGame_isBotTurn_PvEWhite(t *testing.T) {
-	g := &Game{}
-	g.Init()
-	g.Mode = GameModePvE
-	g.Board.CurrentPlayer = PlayerWhite
+	game := &Game{}
+	game.Init()
+	game.Mode = GameModePvE
+	game.Board.CurrentPlayer = PlayerWhite
 
-	if !g.isBotTurn() {
+	if !game.isBotTurn() {
 		t.Error("isBotTurn should return true for PvE mode with White's turn")
 	}
 }
 
 func TestGame_isBotTurn_PvEBlack(t *testing.T) {
-	g := &Game{}
-	g.Init()
-	g.Mode = GameModePvE
-	g.Board.CurrentPlayer = PlayerBlack
+	game := &Game{}
+	game.Init()
+	game.Mode = GameModePvE
+	game.Board.CurrentPlayer = PlayerBlack
 
-	if g.isBotTurn() {
+	if game.isBotTurn() {
 		t.Error("isBotTurn should return false for PvE mode with Black's turn")
 	}
 }
 
 func TestGame_isBotTurn_PvP(t *testing.T) {
-	g := &Game{}
-	g.Init()
-	g.Mode = GameModePvP
-	g.Board.CurrentPlayer = PlayerWhite
+	game := &Game{}
+	game.Init()
+	game.Mode = GameModePvP
+	game.Board.CurrentPlayer = PlayerWhite
 
-	if g.isBotTurn() {
+	if game.isBotTurn() {
 		t.Error("isBotTurn should return false for PvP mode")
 	}
 }
 
 func TestGame_isBotTurn_PvPBlack(t *testing.T) {
-	g := &Game{}
-	g.Init()
-	g.Mode = GameModePvP
-	g.Board.CurrentPlayer = PlayerBlack
+	game := &Game{}
+	game.Init()
+	game.Mode = GameModePvP
+	game.Board.CurrentPlayer = PlayerBlack
 
-	if g.isBotTurn() {
+	if game.isBotTurn() {
 		t.Error("isBotTurn should return false for PvP mode with Black's turn")
 	}
 }
