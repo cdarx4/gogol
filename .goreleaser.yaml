@@ -1,0 +1,122 @@
+# Go Releaser configuration for GoGol
+# This file defines how Go Releaser builds and releases the GoGol game
+
+project_name: gogol
+
+# Build configuration
+builds:
+  - id: gogol
+    main: .
+    binary: gogol
+    dir: .
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Ebiten v2 uses purego and doesn't require CGO for most platforms
+    # CGO is only needed for specific features, so we'll let it default
+    # env:
+    #   - CGO_ENABLED=1
+    # Build flags for optimization
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+# Archive configuration
+archives:
+  - id: default
+    format_overrides:
+      - goos: windows
+        format: zip
+      - goos: linux
+        format: tar.gz
+      - goos: darwin
+        format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+      - README.md
+      - "*.md"
+
+# Release configuration
+release:
+  github:
+    owner: cdarx4
+    name: gogol
+  # Generate changelog from git commits
+  mode: replace
+  header: |
+    ## Changelog
+
+    {{ .Changelog }}
+  footer: |
+    ---
+
+    **Full Changelog**: {{ .PreviousTag }}...{{ .Tag }}
+
+# Changelog configuration
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+# Snapshot configuration (for testing)
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+# Checksum configuration
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+# Docker configuration (optional, can be enabled later)
+# docker:
+#   - image_templates:
+#       - "cdarx4/gogol:{{ .Tag }}"
+#       - "cdarx4/gogol:latest"
+#     dockerfile: Dockerfile
+#     goos: linux
+#     goarch: amd64
+
+# Package managers (optional - can be added later)
+# nfpm:
+#   - id: deb
+#     package_name: gogol
+#     file_name_template: "{{ .ConventionalFileName }}"
+#     maintainer: "GoGol Team"
+#     description: "The game of GO in Golang"
+#     license: MIT
+#     formats:
+#       - deb
+#     dependencies:
+#       - libasound2
+#       - libgl1-mesa-glx
+#       - libxcursor1
+#       - libxi6
+#       - libxinerama1
+#       - libxrandr2
+#       - libxxf86vm1
+#
+#   - id: rpm
+#     package_name: gogol
+#     file_name_template: "{{ .ConventionalFileName }}"
+#     maintainer: "GoGol Team"
+#     description: "The game of GO in Golang"
+#     license: MIT
+#     formats:
+#       - rpm
+#     dependencies:
+#       - alsa-lib
+#       - mesa-libGL
+#       - libXcursor
+#       - libXi
+#       - libXinerama
+#       - libXrandr
+#       - libXxf86vm
+

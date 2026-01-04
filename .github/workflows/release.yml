@@ -3,7 +3,7 @@ name: Release CI/CD
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -15,7 +15,9 @@ jobs:
     steps:
       - name: "[⚙️] Checkout repository"
         uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 0
+
       - name: "[📦] Setup Go"
         uses: actions/setup-go@v5
         with:
@@ -27,6 +29,5 @@ jobs:
           distribution: goreleaser
           version: latest
           args: release --clean
-          workdir: ./server
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

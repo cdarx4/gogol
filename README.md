@@ -64,3 +64,80 @@ To build the game, you can run the following command :
 go build main.go
 ```
 
+# Releases
+
+This project uses [Go Releaser](https://goreleaser.com/) to automate releases. When a new version tag (e.g., `v1.0.0`) is pushed to the repository, GitHub Actions automatically builds and publishes releases for multiple platforms.
+
+## Downloading Releases
+
+You can download pre-built binaries from the [Releases page](https://github.com/cdarx4/gogol/releases) on GitHub. Releases are available for:
+
+- **Linux** (amd64, arm64) - `.tar.gz` archive
+- **macOS** (amd64, arm64) - `.tar.gz` archive  
+- **Windows** (amd64) - `.zip` archive
+
+Each release includes:
+- Platform-specific binaries
+- SHA256 checksums for verification
+- README and documentation
+
+## Installation from Release
+
+### Linux
+
+1. Download the appropriate `.tar.gz` file for your architecture
+2. Extract the archive:
+   ```bash
+   tar -xzf gogol_<version>_linux_<arch>.tar.gz
+   ```
+3. Run the binary:
+   ```bash
+   ./gogol
+   ```
+
+### macOS
+
+1. Download the appropriate `.tar.gz` file for your architecture
+2. Extract the archive:
+   ```bash
+   tar -xzf gogol_<version>_darwin_<arch>.tar.gz
+   ```
+3. Run the binary:
+   ```bash
+   ./gogol
+   ```
+
+### Windows
+
+1. Download the `.zip` file
+2. Extract the archive
+3. Run `gogol.exe`
+
+## Creating a Release
+
+To create a new release:
+
+1. Update the version in your code if needed
+2. Commit your changes
+3. Create and push a new tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+4. GitHub Actions will automatically build and publish the release
+
+## Development
+
+For local development and testing:
+
+```bash
+# Run the game
+go run main.go
+
+# Build locally
+go build -o gogol main.go
+
+# Run tests
+go test ./...
+```
+
