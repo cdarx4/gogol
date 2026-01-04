@@ -1,148 +1,64 @@
-# gogol
-The game of GO in Golang
+# GoGol
 
-# Go rules
+A Go game implementation in Go, developed as part of the course "Programmation élégante en Go" at the Haute école d'ingénierie et d'architecture de Fribourg (HEIA-FR).
 
-We will base our game on those go rules :
+## Authors
 
-![Go rules image](images/go-rules.webp)
+- **Ding Lionel** - lionel.ding@hes-so.ch
+- **Darx Christian** - christia.darx@hes-so.ch
 
-This image was taken from : https://www.reddit.com/r/baduk/comments/vn936i/i_have_created_an_image_to_help_you_understand/
+## Description
 
+GoGol is an implementation of the board game Go (also known as Baduk) featuring:
 
-# TODO
+- Complete game logic with stone placement, group management, and liberty tracking
+- Player versus Player (PvP) and Player versus Environment (PvE) game modes
+- AI opponent powered by a Multi-Layer Perceptron (MLP) neural network
+- Graphical user interface built with Ebiten
+- WebAssembly support for browser-based gameplay
 
-[ ] Optimize the group merging
-[ ] Add the KO rule detection using the zobrist hash
-[ ] Add the winning condition (to be determined)
-[ ] Add more depth to the OpenAI query like the difficulty, ...
-[ ] Make the interface more beautiful
-[ ] Add the pipeline in Github for tests, linting, ...
-[ ] Publish on the github pages
-[ ] add the embed for images
+## Project Structure
 
-# Project structure
-
-In this project, there are multiple packages that each serve a distinct purpose :
-
-- game : Manages the game logic with the board, the stones, ...
-- renderer : Manages the rendering of the game
-- bot : Manages the bot that plays against the player
-- main : Entry point of the application
-
-## Game
-
-In the game package, we've split the logic into multiple files :
-
-- board : this file manages the board and how the stones are placed on it. This means that it handles the placement of the stones, the groups, the liberties AND handles the group deletion when a group has no liberties left.
-- game : this file is a sort of controller that makes the link between the board and the renderer. It is responsible for updating the board and the renderer when a stone is placed. It doesn't handle the stones, groups, liberties, ...
-- types : this files defines the types used in the game like the stones, the groups, the player, ... (the board type is defined in the board.go file)
-
-## Renderer
-
-The renderer package is responsible for rendering the game. It uses the ebiten library to render the game.
-
-## Bot
-
-The bot package is responsible for playing against the player. It uses the OpenAI API to get the next move. It sends the full board as text to the API and gets the coordinates of the next move.
-
-# How to run the game
-
-To run the game, you need to have go installed on your system.
-
-Then, you can run the game by running the following command :
-
-```bash
-go run main.go
+```
+gogol/
+├── ai/          # AI player implementation and MLP neural network
+├── assets/      # Embedded game assets (images, models)
+├── game/        # Core game logic (board, groups, rules)
+├── ui/          # User interface and rendering
+└── main.go      # Application entry point
 ```
 
-# How to build the game
+## Prerequisites
 
-To build the game, you can run the following command :
+- Go 1.24.0 or later
+- Git (for cloning the repository)
 
-```bash
-go build main.go
-```
+## Building and Running
 
-# Releases
-
-This project uses [Go Releaser](https://goreleaser.com/) to automate releases. When a new version tag (e.g., `v1.0.0`) is pushed to the repository, GitHub Actions automatically builds and publishes releases for multiple platforms.
-
-## Downloading Releases
-
-You can download pre-built binaries from the [Releases page](https://github.com/cdarx4/gogol/releases) on GitHub. Releases are available for:
-
-- **Linux** (amd64) - `.tar.gz` archive
-- **Windows** (amd64) - `.zip` archive
-- **macOS** - Currently not available in automated releases due to cross-compilation limitations. Build locally using `go build main.go` on macOS.
-- **ARM64** - Currently not available in automated releases due to cross-compilation issues with Ebiten. Build locally on ARM64 systems if needed.
-
-Each release includes:
-- Platform-specific binaries
-- SHA256 checksums for verification
-- README and documentation
-
-## Installation from Release
-
-### Linux
-
-1. Download the appropriate `.tar.gz` file for your architecture
-2. Extract the archive:
-   ```bash
-   tar -xzf gogol_<version>_linux_<arch>.tar.gz
-   ```
-3. Run the binary:
-   ```bash
-   ./gogol
-   ```
-
-### macOS
-
-macOS binaries are not currently included in automated releases. To build on macOS:
-
-1. Ensure you have Go installed
-2. Clone the repository and build:
-   ```bash
-   git clone https://github.com/cdarx4/gogol.git
-   cd gogol
-   go build -o gogol main.go
-   ```
-3. Run the binary:
-   ```bash
-   ./gogol
-   ```
-
-### Windows
-
-1. Download the `.zip` file
-2. Extract the archive
-3. Run `gogol.exe`
-
-## Creating a Release
-
-To create a new release:
-
-1. Update the version in your code if needed
-2. Commit your changes
-3. Create and push a new tag:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-4. GitHub Actions will automatically build and publish the release
-
-## Development
-
-For local development and testing:
+### From Source
 
 ```bash
+# Clone the repository
+git clone https://github.com/cdarx4/gogol
+cd gogol
+
 # Run the game
 go run main.go
 
-# Build locally
+# Build the executable
 go build -o gogol main.go
+```
 
-# Run tests
+### Running Tests
+
+```bash
 go test ./...
 ```
 
+## Dependencies
+
+- [Ebiten v2](https://github.com/hajimehoshi/ebiten) - 2D game library for Go
+
+## License
+
+This project is licensed under the Apache License 2.0. See the file headers in the source code for details.
