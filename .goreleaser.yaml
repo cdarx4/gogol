@@ -54,15 +54,6 @@ release:
     owner: cdarx4
     name: gogol
   # Generate changelog from git commits
-  mode: replace
-  header: |
-    ## Changelog
-
-    {{ .Changelog }}
-  footer: |
-    ---
-
-    **Full Changelog**: {{ .PreviousTag }}...{{ .Tag }}
 
 # Changelog configuration
 changelog:
