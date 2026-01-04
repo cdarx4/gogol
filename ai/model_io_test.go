@@ -75,8 +75,9 @@ func TestLoadModel_ValidModel(t *testing.T) {
 		t.Fatalf("failed to write test model: %v", err)
 	}
 
-	// Test loading
-	model, err := LoadModel(modelPath)
+	// Test loading using os.DirFS
+	fsys := os.DirFS(tmpDir)
+	model, err := LoadModel(fsys, "test_model.json")
 	if err != nil {
 		t.Fatalf("LoadModel failed: %v", err)
 	}
@@ -91,7 +92,8 @@ func TestLoadModel_ValidModel(t *testing.T) {
 }
 
 func TestLoadModel_InvalidPath(t *testing.T) {
-	_, err := LoadModel("nonexistent/path/model.json")
+	fsys := os.DirFS(".")
+	_, err := LoadModel(fsys, "nonexistent/path/model.json")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file, got nil")
 	}
@@ -105,7 +107,8 @@ func TestLoadModel_InvalidJSON(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	_, err := LoadModel(modelPath)
+	fsys := os.DirFS(tmpDir)
+	_, err := LoadModel(fsys, "invalid.json")
 	if err == nil {
 		t.Fatal("expected error for invalid JSON, got nil")
 	}
@@ -131,7 +134,8 @@ func TestLoadModel_InvalidArchitecture(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	_, err = LoadModel(modelPath)
+	fsys := os.DirFS(tmpDir)
+	_, err = LoadModel(fsys, "invalid_arch.json")
 	if err == nil {
 		t.Fatal("expected error for invalid architecture, got nil")
 	}
@@ -161,7 +165,8 @@ func TestLoadModel_LayerCountMismatch(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	_, err = LoadModel(modelPath)
+	fsys := os.DirFS(tmpDir)
+	_, err = LoadModel(fsys, "mismatch.json")
 	if err == nil {
 		t.Fatal("expected error for layer count mismatch, got nil")
 	}

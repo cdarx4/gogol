@@ -23,7 +23,7 @@
 
 package assets
 
-import _ "embed"
+import "embed"
 
 // Embed images for stone rendering
 //go:embed images/black-stone.png
@@ -34,4 +34,4 @@ var WhiteStonePNG []byte
 
 // Embed MLP model for AI player
 //go:embed models/champion.json
-var ChampionModelJSON []byte
+var Models embed.FS

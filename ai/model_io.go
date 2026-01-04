@@ -26,7 +26,7 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/fs"
 )
 
 const ModelVersion = "1.0"
@@ -44,18 +44,13 @@ type LayerData struct {
 	Biases  []float64   `json:"biases"`
 }
 
-// LoadModel loads an MLP from a JSON file
-func LoadModel(path string) (*MLP, error) {
-	jsonData, err := os.ReadFile(path)
+// LoadModel loads an MLP from a filesystem (works with embed.FS and regular filesystems)
+func LoadModel(fsys fs.FS, path string) (*MLP, error) {
+	jsonData, err := fs.ReadFile(fsys, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read model file: %w", err)
 	}
 
-	return LoadModelFromBytes(jsonData)
-}
-
-// LoadModelFromBytes loads an MLP from embedded JSON data (WASM compatible)
-func LoadModelFromBytes(jsonData []byte) (*MLP, error) {
 	var data ModelData
 	if err := json.Unmarshal(jsonData, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal model: %w", err)

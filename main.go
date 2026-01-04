@@ -49,7 +49,7 @@ func main() {
 
 	// Load AI model from embedded assets for PvE mode (WASM compatible)
 	// Non-blocking - game will handle failure gracefully
-	model, err := ai.LoadModelFromBytes(assets.ChampionModelJSON)
+	model, err := ai.LoadModel(assets.Models, "models/champion.json")
 	if err != nil {
 		log.Printf("Note: Failed to load embedded AI model. PvE mode will not be available. Error: %v", err)
 	} else {
