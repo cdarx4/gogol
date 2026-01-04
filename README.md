@@ -72,9 +72,10 @@ This project uses [Go Releaser](https://goreleaser.com/) to automate releases. W
 
 You can download pre-built binaries from the [Releases page](https://github.com/cdarx4/gogol/releases) on GitHub. Releases are available for:
 
-- **Linux** (amd64, arm64) - `.tar.gz` archive
-- **Windows** (amd64, arm64) - `.zip` archive
+- **Linux** (amd64) - `.tar.gz` archive
+- **Windows** (amd64) - `.zip` archive
 - **macOS** - Currently not available in automated releases due to cross-compilation limitations. Build locally using `go build main.go` on macOS.
+- **ARM64** - Currently not available in automated releases due to cross-compilation issues with Ebiten. Build locally on ARM64 systems if needed.
 
 Each release includes:
 - Platform-specific binaries

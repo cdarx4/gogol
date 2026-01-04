@@ -19,7 +19,10 @@ builds:
       # - darwin
     goarch:
       - amd64
-      - arm64
+      # Temporarily excluding arm64 due to Ebiten v2.9.4 cross-compilation issues
+      # Linux ARM64 and Windows ARM64 builds fail with GLFW/OpenGL driver errors
+      # Users can build ARM64 binaries locally if needed
+      # - arm64
     # Ebiten v2 uses purego and doesn't require CGO for most platforms
     # CGO is only needed for specific features, so we'll let it default
     # env:
@@ -78,48 +81,5 @@ changelog:
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
   algorithm: sha256
-# Docker configuration (optional, can be enabled later)
-# docker:
-#   - image_templates:
-#       - "cdarx4/gogol:{{ .Tag }}"
-#       - "cdarx4/gogol:latest"
-#     dockerfile: Dockerfile
-#     goos: linux
-#     goarch: amd64
-
-# Package managers (optional - can be added later)
-# nfpm:
-#   - id: deb
-#     package_name: gogol
-#     file_name_template: "{{ .ConventionalFileName }}"
-#     maintainer: "GoGol Team"
-#     description: "The game of GO in Golang"
-#     license: MIT
-#     formats:
-#       - deb
-#     dependencies:
-#       - libasound2
-#       - libgl1-mesa-glx
-#       - libxcursor1
-#       - libxi6
-#       - libxinerama1
-#       - libxrandr2
-#       - libxxf86vm1
-#
-#   - id: rpm
-#     package_name: gogol
-#     file_name_template: "{{ .ConventionalFileName }}"
-#     maintainer: "GoGol Team"
-#     description: "The game of GO in Golang"
-#     license: MIT
-#     formats:
-#       - rpm
-#     dependencies:
-#       - alsa-lib
-#       - mesa-libGL
-#       - libXcursor
-#       - libXi
-#       - libXinerama
-#       - libXrandr
 #       - libXxf86vm
 
