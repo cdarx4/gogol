@@ -30,12 +30,13 @@ import (
 )
 
 // Init initializes the game to its starting state.
+// Preserves the bot if it was already set (for game restarts).
 func (g *Game) Init() {
 	g.State = GameStateIntro
 	g.Board = NewBoard(BoardSize)
 	g.Mode = GameModePvP
 	g.BotMoveChan = make(chan BotMoveResult)
-	g.Bot = nil
+	// Note: g.Bot is intentionally not reset here to preserve it across game restarts
 }
 
 // Update updates the game state. It implements ebiten.Game.
