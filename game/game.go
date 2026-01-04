@@ -29,95 +29,177 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-// Initialize the game
+// Init initializes the game to its starting state.
 func (g *Game) Init() {
 	g.State = GameStateIntro
 	g.Board = NewBoard(BoardSize)
 	g.Mode = GameModePvP
 	g.BotMoveChan = make(chan BotMoveResult)
+	g.Bot = nil
 }
 
-// To pass to the next state when the user clicks or presses space
+// Update updates the game state. It implements ebiten.Game.
 func (g *Game) Update() error {
 	if g.State == GameStateIntro {
-		if inpututil.IsKeyJustPressed(ebiten.KeyP) {
-			g.Mode = GameModePvP
-			g.State = GameStateGame
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyB) {
-			g.Mode = GameModePvE
-			g.State = GameStateGame
-		} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			g.Mode = GameModePvP
-			g.State = GameStateGame
-		}
-	} else if g.State == GameStateGame {
-		// Check for bot result
-		select {
-		case result := <-g.BotMoveChan:
-			g.IsBotThinking = false
-			if result.Err == nil {
-				if g.Board.PlaceStone(result.X, result.Y) {
-					g.PrintGame()
-				}
+		return g.handleIntroState()
+	}
+
+	if g.State == GameStateGame {
+		// Check whose turn it is and handle accordingly
+		if g.isBotTurn() {
+			// Bot's turn: either waiting for result or needs to start thinking
+			if g.IsBotThinking {
+				g.handleBotResult()
 			} else {
-				fmt.Println("Bot error:", result.Err)
+				g.handleBotTurn()
 			}
-		default:
-			// No result yet
+		} else {
+			// Player's turn
+			g.handlePlayerInput()
 		}
 
-		if g.IsBotThinking {
-			return nil // Don't allow other inputs while thinking
+		if g.Board.PassCount == 2 {
+			g.State = GameStateEnd
 		}
+		return nil
+	}
 
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			x, y := ebiten.CursorPosition()
-			if g.Renderer != nil {
-				row, col, onBoard := g.Renderer.GetGridPosition(x, y)
-				if onBoard {
-					// In PvE, only allow player (Black) to move manually
-					// In PvP, both can move manually (turn logic handled by Board)
-					if g.Mode == GameModePvE && g.Board.currentPlayer != PlayerBlack {
-						// It's bot's turn, ignore click
-					} else {
-						if g.Board.PlaceStone(row, col) {
-							g.PrintGame()
-						}
-					}
-				}
-
-			}
-		}
-
-		// Bot turn (White) - Only in PvE mode
-		if g.Mode == GameModePvE && g.Board.currentPlayer == PlayerWhite && !g.IsBotThinking {
-			g.IsBotThinking = true
-			go func() {
-				x, y, err := GetNextMove(g.Board, PlayerWhite)
-				g.BotMoveChan <- BotMoveResult{X: x, Y: y, Err: err}
-			}()
+	if g.State == GameStateEnd {
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+			g.State = GameStateIntro
+			g.Init()
 		}
 	}
 	return nil
 }
 
-// Print the current game state
-func (g *Game) PrintGame() {
-	fmt.Println("Current Game State:")
-	fmt.Println(g.Board.String())
-}
-
-// Draw the game
+// Draw draws the game. It implements ebiten.Game.
 func (g *Game) Draw(screen *ebiten.Image) {
 	if g.Renderer != nil {
 		g.Renderer.Draw(screen, g)
 	}
 }
 
-// Layout the game
+// Layout returns the game's logical screen size. It implements ebiten.Game.
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	if g.Renderer != nil {
 		return g.Renderer.Layout(outsideWidth, outsideHeight)
 	}
 	return 600, 600
+}
+
+// SetBot sets the AI bot for the game.
+func (g *Game) SetBot(bot AIPlayer) {
+	g.Bot = bot
+}
+
+// handleIntroState processes input while the game is in the intro state.
+func (g *Game) handleIntroState() error {
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		g.Mode = GameModePvP
+		g.State = GameStateGame
+		return nil
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyB) {
+		g.Mode = GameModePvE
+		g.State = GameStateGame
+		return nil
+	}
+
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		g.Mode = GameModePvP
+		g.State = GameStateGame
+		return nil
+	}
+
+	return nil
+}
+
+// handleBotResult checks for and processes bot move results when the bot is thinking.
+func (g *Game) handleBotResult() {
+	select {
+	case result := <-g.BotMoveChan:
+		g.IsBotThinking = false
+		g.processBotMove(result)
+	default:
+		// No result yet, keep waiting
+	}
+}
+
+// processBotMove processes a completed bot move result.
+func (g *Game) processBotMove(result BotMoveResult) {
+	if result.Err != nil {
+		fmt.Println("Bot error:", result.Err, "- passing instead")
+		g.handlePass()
+		return
+	}
+
+	if result.Pass {
+		g.handlePass()
+		return
+	}
+
+	if g.Board.PlaceStone(result.X, result.Y) {
+		g.checkGameEnd()
+		return
+	}
+
+	// Move failed (shouldn't happen, but handle gracefully)
+	fmt.Println("Bot move failed, passing instead")
+	g.handlePass()
+}
+
+// handlePlayerInput processes player input during gameplay.
+func (g *Game) handlePlayerInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyS) {
+		g.handlePass()
+		return
+	}
+
+	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		return
+	}
+
+	x, y := ebiten.CursorPosition()
+	row, col, onBoard := g.Renderer.GetGridPosition(x, y)
+	if !onBoard {
+		return
+	}
+
+	if g.Board.PlaceStone(row, col) {
+		g.checkGameEnd()
+	}
+}
+
+// isBotTurn reports whether it is currently the bot's turn.
+func (g *Game) isBotTurn() bool {
+	return g.Mode == GameModePvE && g.Board.CurrentPlayer == PlayerWhite
+}
+
+// handleBotTurn starts the bot's move calculation in a goroutine.
+func (g *Game) handleBotTurn() {
+	if g.Bot == nil {
+		g.handlePass()
+		return
+	}
+
+	g.IsBotThinking = true
+	go func() {
+		x, y, err := g.Bot.NextMove(g.Board, PlayerWhite)
+		pass := (x == -1 && y == -1)
+		g.BotMoveChan <- BotMoveResult{X: x, Y: y, Pass: pass, Err: err}
+	}()
+}
+
+// handlePass executes a pass move.
+func (g *Game) handlePass() {
+	g.Board.Pass()
+}
+
+// checkGameEnd checks if the board is full and ends the game if so.
+func (g *Game) checkGameEnd() {
+	if g.Board.IsFull() {
+		g.State = GameStateEnd
+	}
 }

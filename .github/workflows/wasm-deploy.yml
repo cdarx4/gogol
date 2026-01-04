@@ -75,7 +75,7 @@ jobs:
           cp gogol.wasm deploy/
           cp wasm_exec.js deploy/
           cp index.html deploy/
-          cp -r images deploy/ 2>/dev/null || true
+          # Note: Images and model are now embedded in gogol.wasm
 
       - name: "[💾] Upload artifacts"
         uses: actions/upload-artifact@v4

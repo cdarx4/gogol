@@ -32,11 +32,14 @@ func NewBoard(size int) *Board {
 		grid[i] = make([]*Stone, size)
 	}
 
-	return &Board{
+	b := &Board{
 		Size:          size,
 		Grid:          grid,
-		currentPlayer: StartingPlayer,
+		CurrentPlayer: StartingPlayer,
+		History:       []string{},
 	}
+	b.History = append(b.History, b.String())
+	return b
 }
 
 // ---------- Helpers ----------
@@ -182,6 +185,122 @@ func (b *Board) isSuicide(x, y int, player Player) bool {
 	return len(liberties) == 0
 }
 
+// ---------- Ko Check ----------
+
+// Checks if the move would violate the Ko rule (Positional Superko).
+func (b *Board) isKo(x, y int, player Player) bool {
+	nextState := b.simulateNextState(x, y, player)
+	for _, state := range b.History {
+		if state == nextState {
+			return true
+		}
+	}
+	return false
+}
+
+// Simulates the next board state string after a move.
+func (b *Board) simulateNextState(x, y int, player Player) string {
+	// 1. Create a simplified copy of the grid (0=empty, 1=black, 2=white)
+	sim := make([][]int, b.Size)
+	for i := 0; i < b.Size; i++ {
+		sim[i] = make([]int, b.Size)
+		for j := 0; j < b.Size; j++ {
+			if b.Grid[i][j] != nil {
+				if b.Grid[i][j].Player == PlayerBlack {
+					sim[i][j] = 1
+				} else {
+					sim[i][j] = 2
+				}
+			}
+		}
+	}
+
+	// 2. Place the stone
+	myVal := 1
+	if player == PlayerWhite {
+		myVal = 2
+	}
+	sim[x][y] = myVal
+
+	// 3. Check for captures of opponents
+	oppVal := 1
+	if myVal == 1 {
+		oppVal = 2
+	}
+
+	dirs := [][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
+
+	// Helper: recursive floodfill to check liberties and remove if captured
+	// Returns true if group was captured (removed)
+	checkAndRemove := func(sx, sy int) {
+		if sx < 0 || sx >= b.Size || sy < 0 || sy >= b.Size {
+			return
+		}
+		if sim[sx][sy] != oppVal {
+			return
+		}
+
+		// Find group and check liberties
+		group := [][2]int{}
+		q := [][2]int{{sx, sy}}
+		visited := map[[2]int]bool{{sx, sy}: true}
+		hasLiberties := false
+
+		head := 0
+		for head < len(q) {
+			cur := q[head]
+			head++
+			group = append(group, cur)
+			cx, cy := cur[0], cur[1]
+
+			for _, d := range dirs {
+				nx, ny := cx+d[0], cy+d[1]
+				if nx < 0 || nx >= b.Size || ny < 0 || ny >= b.Size {
+					continue
+				}
+				val := sim[nx][ny]
+				if val == 0 {
+					hasLiberties = true
+				} else if val == oppVal {
+					if !visited[[2]int{nx, ny}] {
+						visited[[2]int{nx, ny}] = true
+						q = append(q, [2]int{nx, ny})
+					}
+				}
+			}
+		}
+
+		if !hasLiberties {
+			// Remove group
+			for _, s := range group {
+				sim[s[0]][s[1]] = 0
+			}
+		}
+	}
+
+	// Check all neighbors
+	for _, d := range dirs {
+		checkAndRemove(x+d[0], y+d[1])
+	}
+
+	// 4. Generate string representation
+	out := ""
+	for y := 0; y < b.Size; y++ {
+		for x := 0; x < b.Size; x++ {
+			val := sim[x][y]
+			if val == 0 {
+				out += ". "
+			} else if val == 1 {
+				out += "B "
+			} else {
+				out += "W "
+			}
+		}
+		out += "\n"
+	}
+	return out
+}
+
 // ---------- Adjacent groups ----------
 
 // Returns a slice of all unique groups directly adjacent to (x, y).
@@ -210,18 +329,26 @@ func (b *Board) adjacentGroups(x, y int) []*Group {
 // Places a stone for the current player at (x, y) if legal, enacts all necessary group/capture logic, and advances the turn.
 // Returns true if the move was successful.
 func (b *Board) PlaceStone(x, y int) bool {
+	// Reset pass count
+	b.PassCount = 0
+
 	// 1. Basic legality checks: must be on board, location must be empty.
 	if !b.isInBounds(x, y) || b.isOccupied(x, y) {
 		return false
 	}
 
 	// 2. Illegal move if it would be suicide (self-capture).
-	if b.isSuicide(x, y, b.currentPlayer) {
+	if b.isSuicide(x, y, b.CurrentPlayer) {
+		return false
+	}
+
+	// 3. Illegal move if it violates Ko rule (reps state).
+	if b.isKo(x, y, b.CurrentPlayer) {
 		return false
 	}
 
 	// 3. Place the new stone and create its group.
-	stone := &Stone{X: x, Y: y, Player: b.currentPlayer}
+	stone := &Stone{X: x, Y: y, Player: b.CurrentPlayer}
 	b.Grid[x][y] = stone
 	newGroup := b.createGroup(stone)
 
@@ -230,7 +357,7 @@ func (b *Board) PlaceStone(x, y int) bool {
 	toMerge := []*Group{}
 
 	for _, g := range adj {
-		if g.Player == b.currentPlayer {
+		if g.Player == b.CurrentPlayer {
 			toMerge = append(toMerge, g)
 		}
 	}
@@ -244,15 +371,18 @@ func (b *Board) PlaceStone(x, y int) bool {
 
 	// 6. Capture any adjacent opponent groups that have lost all liberties.
 	for _, g := range b.Groups {
-		if g.Player != b.currentPlayer && len(g.Liberties) == 0 {
+		if g.Player != b.CurrentPlayer && len(g.Liberties) == 0 {
 			b.captureGroup(g)
 		}
 	}
 
-	// 7. Recompute liberties again after any captures.
+	// 8. Recompute liberties again after any captures.
 	b.recomputeAllGroupLiberties()
 
-	// 8. Switch to the next player's turn.
+	// 9. Register new board state
+	b.History = append(b.History, b.String())
+
+	// 10. Switch to the next player's turn.
 	b.switchTurn()
 	return true
 }
@@ -261,7 +391,179 @@ func (b *Board) PlaceStone(x, y int) bool {
 
 // Switches current player to their opponent.
 func (b *Board) switchTurn() {
-	b.currentPlayer = b.currentPlayer.Opponent()
+	b.CurrentPlayer = b.CurrentPlayer.Opponent()
+}
+
+// Pass allows the current player to skip their turn.
+func (b *Board) Pass() {
+	b.switchTurn()
+	b.PassCount++
+}
+
+// GetStoneCount returns the number of stones for each player
+func (b *Board) GetStoneCount() (blackCount, whiteCount int) {
+	for x := 0; x < b.Size; x++ {
+		for y := 0; y < b.Size; y++ {
+			if b.Grid[x][y] != nil {
+				if b.Grid[x][y].Player == PlayerBlack {
+					blackCount++
+				} else {
+					whiteCount++
+				}
+			}
+		}
+	}
+	return
+}
+
+// GetWinner returns the winner based on stone count
+// Returns nil if draw
+func (b *Board) GetWinner() (winner *Player, isDraw bool) {
+	black, white := b.GetStoneCount()
+	if black > white {
+		p := PlayerBlack
+		return &p, false
+	} else if white > black {
+		p := PlayerWhite
+		return &p, false
+	}
+	return nil, true
+}
+
+// IsFull checks if the board is completely full (no empty spots)
+func (b *Board) IsFull() bool {
+	for x := 0; x < b.Size; x++ {
+		for y := 0; y < b.Size; y++ {
+			if b.Grid[x][y] == nil {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// ---------- Clone ----------
+
+// Clone creates a deep copy of the board
+func (b *Board) Clone() *Board {
+	cloned := &Board{
+		Size:          b.Size,
+		Grid:          make([][]*Stone, b.Size),
+		Groups:        make([]*Group, 0, len(b.Groups)),
+		nextGroupId:   b.nextGroupId,
+		CurrentPlayer: b.CurrentPlayer,
+		PassCount:     b.PassCount,
+		History:       make([]string, len(b.History)),
+	}
+	copy(cloned.History, b.History)
+
+	// Create new grid
+	for i := range cloned.Grid {
+		cloned.Grid[i] = make([]*Stone, b.Size)
+	}
+
+	// Map old groups to new groups
+	groupMap := make(map[int]*Group)
+
+	// Clone stones and create groups
+	for x := 0; x < b.Size; x++ {
+		for y := 0; y < b.Size; y++ {
+			if b.Grid[x][y] != nil {
+				oldStone := b.Grid[x][y]
+				newStone := &Stone{
+					X:      oldStone.X,
+					Y:      oldStone.Y,
+					Player: oldStone.Player,
+				}
+				cloned.Grid[x][y] = newStone
+
+				// Create or reuse group
+				if oldStone.Group != nil {
+					if newGroup, exists := groupMap[oldStone.Group.ID]; !exists {
+						newGroup = &Group{
+							ID:        oldStone.Group.ID,
+							Player:    oldStone.Group.Player,
+							Stones:    []*Stone{newStone},
+							Liberties: make(map[[2]int]struct{}),
+						}
+						groupMap[oldStone.Group.ID] = newGroup
+						cloned.Groups = append(cloned.Groups, newGroup)
+						newStone.Group = newGroup
+					} else {
+						newGroup.Stones = append(newGroup.Stones, newStone)
+						newStone.Group = newGroup
+					}
+				}
+			}
+		}
+	}
+
+	// Recompute liberties for all groups
+	cloned.recomputeAllGroupLiberties()
+
+	return cloned
+}
+
+// ---------- Legal moves ----------
+
+// GetLegalMoves returns all legal moves for the given player
+// Includes pass move represented as (-1, -1)
+func (b *Board) GetLegalMoves(p Player) [][2]int {
+	moves := make([][2]int, 0)
+
+	// Add pass move
+	moves = append(moves, [2]int{-1, -1})
+
+	// Check all board positions
+	for x := 0; x < b.Size; x++ {
+		for y := 0; y < b.Size; y++ {
+			// Check if position is empty
+			if !b.isOccupied(x, y) {
+				// Check if move is legal (not suicide)
+				if !b.isSuicide(x, y, p) {
+					moves = append(moves, [2]int{x, y})
+				}
+			}
+		}
+	}
+
+	return moves
+}
+
+// CloneAndPlay clones the board, applies the move, and returns the new board
+// Returns (cloned board, success)
+// Does not modify the original board
+func (b *Board) CloneAndPlay(x, y int, p Player) (*Board, bool) {
+	cloned := b.Clone()
+
+	// Handle pass move
+	if x == -1 && y == -1 {
+		cloned.Pass()
+		return cloned, true
+	}
+
+	// Check if move is legal on cloned board
+	if !cloned.isInBounds(x, y) || cloned.isOccupied(x, y) {
+		return cloned, false
+	}
+
+	if cloned.isSuicide(x, y, p) {
+		return cloned, false
+	}
+
+	// Temporarily set current player to apply move
+	originalPlayer := cloned.CurrentPlayer
+	cloned.CurrentPlayer = p
+
+	// Apply the move
+	success := cloned.PlaceStone(x, y)
+
+	// Restore original player state (PlaceStone switches turn, so we need to handle this)
+	if !success {
+		cloned.CurrentPlayer = originalPlayer
+	}
+
+	return cloned, success
 }
 
 // ---------- Debug ----------

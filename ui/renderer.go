@@ -24,9 +24,9 @@
 package ui
 
 import (
-	"image/color"
-
 	"bytes"
+	"fmt"
+	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -34,6 +34,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
+	"heia2526/gogol/assets"
 	"heia2526/gogol/game"
 )
 
@@ -45,6 +46,7 @@ const (
 	PVPText          = "Press P or Space to start a PVP game"
 	PVEText          = "Press B to start a PVE game"
 	ThinkingText     = "Thinking..."
+	PassText         = "Press S to pass"
 	TitleFontSize    = 24
 	SubTitleFontSize = 12
 )
@@ -61,15 +63,17 @@ type Renderer struct {
 }
 
 func NewRenderer() *Renderer {
-	black, _, err := ebitenutil.NewImageFromFile("images/black-stone.png")
+	// Load images from embedded assets (WASM compatible)
+	black, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.BlackStonePNG))
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to load embedded black stone: %w", err))
 	}
-	white, _, err := ebitenutil.NewImageFromFile("images/white-stone.png")
+	white, _, err := ebitenutil.NewImageFromReader(bytes.NewReader(assets.WhiteStonePNG))
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to load embedded white stone: %w", err))
 	}
 
+	// Load font face source
 	s, err := text.NewGoTextFaceSource(bytes.NewReader(fonts.PressStart2P_ttf))
 	if err != nil {
 		panic(err)
@@ -90,6 +94,7 @@ func (r *Renderer) Draw(screen *ebiten.Image, g *game.Game) {
 		r.drawBoard(screen, g)
 	case game.GameStateEnd:
 		r.drawBoard(screen, g)
+		r.drawGameOver(screen, g)
 	}
 }
 
@@ -149,6 +154,7 @@ func (r *Renderer) drawIntro(screen *ebiten.Image) {
 	op.GeoM.Translate((screenWidth-pveW)/2, currentY)
 	op.ColorScale.ScaleWithColor(color.White)
 	text.Draw(screen, PVEText, subtitleFace, op)
+
 }
 
 func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
@@ -233,6 +239,15 @@ func (r *Renderer) drawBoard(screen *ebiten.Image, g *game.Game) {
 		size := screen.Bounds().Size()
 		width, height := size.X, size.Y
 		ebitenutil.DebugPrintAt(screen, ThinkingText, width/2-30, height-20)
+	} else {
+		// Show pass instruction if it's not bot thinking (and implicitly it's a human turn)
+		// We could be more specific (only if current player is human), but for now this is fine.
+		size := screen.Bounds().Size()
+		width, height := size.X, size.Y
+		// Draw it slightly above bottom or in a corner. Let's put it top left or bottom left.
+		// For consistency with DebugPrintAt which is simple, let's use it.
+		// width/2 - 40 to center roughly? "Press S to pass" is about 15 chars.
+		ebitenutil.DebugPrintAt(screen, PassText, width/2-50, height-20)
 	}
 }
 
@@ -266,4 +281,31 @@ func (r *Renderer) GetGridPosition(x, y int) (row, col int, onBoard bool) {
 	}
 
 	return 0, 0, false
+}
+
+func (r *Renderer) drawGameOver(screen *ebiten.Image, g *game.Game) {
+	winner, isDraw := g.Board.GetWinner()
+	black, white := g.Board.GetStoneCount()
+
+	var textStr string
+	if isDraw {
+		textStr = fmt.Sprintf("Draw! Black: %d, White: %d", black, white)
+	} else if *winner == game.PlayerBlack {
+		textStr = fmt.Sprintf("Black Wins! Black: %d, White: %d", black, white)
+	} else {
+		textStr = fmt.Sprintf("White Wins! Black: %d, White: %d", black, white)
+	}
+	textStr += "\nPress Space to Restart"
+
+	size := screen.Bounds().Size()
+	width, height := size.X, size.Y
+
+	// Draw a semi-transparent background
+	rectImg := ebiten.NewImage(400, 100)
+	rectImg.Fill(color.RGBA{0, 0, 0, 180})
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(width/2-200), float64(height/2-50))
+	screen.DrawImage(rectImg, op)
+
+	ebitenutil.DebugPrintAt(screen, textStr, width/2-100, height/2-20)
 }

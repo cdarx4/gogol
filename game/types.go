@@ -69,7 +69,9 @@ type Board struct {
 	Grid          [][]*Stone
 	Groups        []*Group
 	nextGroupId   int
-	currentPlayer Player
+	CurrentPlayer Player
+	PassCount     int
+	History       []string
 }
 
 // Renderer interface for the game
@@ -77,6 +79,11 @@ type Renderer interface {
 	Draw(screen *ebiten.Image, game *Game)
 	Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int)
 	GetGridPosition(x, y int) (row, col int, onBoard bool)
+}
+
+// AIPlayer interface for AI players
+type AIPlayer interface {
+	NextMove(b *Board, p Player) (x, y int, err error)
 }
 
 // Represents the struct for the game itself
@@ -87,10 +94,12 @@ type Game struct {
 	Mode          GameMode
 	IsBotThinking bool
 	BotMoveChan   chan BotMoveResult
+	Bot           AIPlayer
 }
 
 type BotMoveResult struct {
 	X, Y int
+	Pass bool
 	Err  error
 }
 
