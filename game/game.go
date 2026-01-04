@@ -120,28 +120,28 @@ func (g *Game) handleIntroState() error {
 // handleBotResult checks for and processes bot move results when the bot is thinking.
 func (g *Game) handleBotResult() {
 	select {
-	case result := <-g.BotMoveChan:
+	case botMoveResult := <-g.BotMoveChan:
 		g.IsBotThinking = false
-		g.processBotMove(result)
+		g.processBotMove(botMoveResult)
 	default:
 		// No result yet, keep waiting
 	}
 }
 
 // processBotMove processes a completed bot move result.
-func (g *Game) processBotMove(result BotMoveResult) {
-	if result.Err != nil {
-		fmt.Println("Bot error:", result.Err, "- passing instead")
+func (g *Game) processBotMove(botMoveResult BotMoveResult) {
+	if botMoveResult.Err != nil {
+		fmt.Println("Bot error:", botMoveResult.Err, "- passing instead")
 		g.handlePass()
 		return
 	}
 
-	if result.Pass {
+	if botMoveResult.Pass {
 		g.handlePass()
 		return
 	}
 
-	if g.Board.PlaceStone(result.X, result.Y) {
+	if g.Board.PlaceStone(botMoveResult.X, botMoveResult.Y) {
 		g.checkGameEnd()
 		return
 	}
@@ -162,13 +162,13 @@ func (g *Game) handlePlayerInput() {
 		return
 	}
 
-	x, y := ebiten.CursorPosition()
-	row, col, onBoard := g.Renderer.GetGridPosition(x, y)
+	cursorX, cursorY := ebiten.CursorPosition()
+	gridX, gridY, onBoard := g.Renderer.GetGridPosition(cursorX, cursorY)
 	if !onBoard {
 		return
 	}
 
-	if g.Board.PlaceStone(row, col) {
+	if g.Board.PlaceStone(gridX, gridY) {
 		g.checkGameEnd()
 	}
 }
@@ -187,9 +187,9 @@ func (g *Game) handleBotTurn() {
 
 	g.IsBotThinking = true
 	go func() {
-		x, y, err := g.Bot.NextMove(g.Board, PlayerWhite)
-		pass := (x == -1 && y == -1)
-		g.BotMoveChan <- BotMoveResult{X: x, Y: y, Pass: pass, Err: err}
+		moveX, moveY, err := g.Bot.NextMove(g.Board, PlayerWhite)
+		isPassMove := (moveX == -1 && moveY == -1)
+		g.BotMoveChan <- BotMoveResult{X: moveX, Y: moveY, Pass: isPassMove, Err: err}
 	}()
 }
 

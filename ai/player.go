@@ -102,10 +102,6 @@ func (p *MLPPlayer) nextMoveSinglePly(b *game.Board, player game.Player) (x, y i
 			continue // Skip illegal moves (shouldn't happen, but be safe)
 		}
 
-		// Encode the resulting position from the player's perspective
-		// Note: CloneAndPlay switches the turn, so we need to evaluate from the opponent's perspective
-		// Actually, we want to evaluate how good the position is for the player who just moved
-		// So we encode from the current player's perspective (which is now the opponent after the move)
 		encoded := EncodeBoard(cloned, cloned.CurrentPlayer.Opponent())
 
 		// Evaluate with MLP (value from the perspective of the player who just moved)
