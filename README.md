@@ -17,6 +17,12 @@ GoGol is an implementation of the board game Go (also known as Baduk) featuring:
 - Graphical user interface built with Ebiten
 - WebAssembly support for browser-based gameplay
 
+## Go Rules
+
+The game follows the standard rules of Go. The following image provides an overview of the basic rules:
+
+![Go rules](assets/images/go-rules.webp)
+
 ## Project Structure
 
 ```
