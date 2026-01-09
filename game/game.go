@@ -59,18 +59,22 @@ func (g *Game) Update() error {
 			g.handlePlayerInput()
 		}
 
+		// End game if players pass 2 times
 		if g.Board.PassCount == 2 {
 			g.State = GameStateEnd
 		}
+
 		return nil
 	}
 
+	// Restart game if space is pressed
 	if g.State == GameStateEnd {
 		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 			g.State = GameStateIntro
 			g.Init()
 		}
 	}
+
 	return nil
 }
 
@@ -96,20 +100,21 @@ func (g *Game) SetBot(bot AIPlayer) {
 
 // handleIntroState processes input while the game is in the intro state.
 func (g *Game) handleIntroState() error {
+	// Enter PVP mode when pressing the P key or mouse
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
 		g.Mode = GameModePvP
 		g.State = GameStateGame
 		return nil
 	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyB) {
-		g.Mode = GameModePvE
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		g.Mode = GameModePvP
 		g.State = GameStateGame
 		return nil
 	}
 
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		g.Mode = GameModePvP
+	// Enter Bot mode on B key press
+	if inpututil.IsKeyJustPressed(ebiten.KeyB) {
+		g.Mode = GameModePvE
 		g.State = GameStateGame
 		return nil
 	}
@@ -130,17 +135,20 @@ func (g *Game) handleBotResult() {
 
 // processBotMove processes a completed bot move result.
 func (g *Game) processBotMove(botMoveResult BotMoveResult) {
+	// Pass if bot made an error
 	if botMoveResult.Err != nil {
 		fmt.Println("Bot error:", botMoveResult.Err, "- passing instead")
 		g.handlePass()
 		return
 	}
 
+	// Pass if bot suggests a pass
 	if botMoveResult.Pass {
 		g.handlePass()
 		return
 	}
 
+	// Place stone where bot suggested
 	if g.Board.PlaceStone(botMoveResult.X, botMoveResult.Y) {
 		g.checkGameEnd()
 		return
@@ -153,21 +161,25 @@ func (g *Game) processBotMove(botMoveResult BotMoveResult) {
 
 // handlePlayerInput processes player input during gameplay.
 func (g *Game) handlePlayerInput() {
+	// Pass if S key is pressed
 	if inpututil.IsKeyJustPressed(ebiten.KeyS) {
 		g.handlePass()
 		return
 	}
 
+	// Do nothing if it's not a left mouse button click
 	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return
 	}
 
+	// Get position where user clicked
 	cursorX, cursorY := ebiten.CursorPosition()
 	gridX, gridY, onBoard := g.Renderer.GetGridPosition(cursorX, cursorY)
 	if !onBoard {
 		return
 	}
 
+	// Place stone on user click
 	if g.Board.PlaceStone(gridX, gridY) {
 		g.checkGameEnd()
 	}

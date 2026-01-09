@@ -40,9 +40,9 @@ import (
 
 const (
 	// Board sizing/layout constants
-	cellSize         = 60
-	boardMargin      = 50
-	lineWidth        = 2
+	cellSize    = 60
+	boardMargin = 50
+	lineWidth   = 2
 
 	// UI text and font sizes
 	introTitle       = "GoGol"
@@ -50,6 +50,7 @@ const (
 	PVEText          = "Press B to start a PVE game"
 	ThinkingText     = "Thinking..."
 	PassText         = "Press S to pass"
+	GameOverText     = "\nPress Space to Restart"
 	TitleFontSize    = 24
 	SubTitleFontSize = 12
 
@@ -65,6 +66,7 @@ const (
 	gameOverAlpha      = 180
 )
 
+// Colors and font sources for the UI
 var (
 	boardColor      = color.RGBA{220, 179, 92, 255}
 	lineColor       = color.RGBA{0, 0, 0, 255}
@@ -315,7 +317,7 @@ func (r *Renderer) drawGameOver(screen *ebiten.Image, currentGame *game.Game) {
 	} else {
 		messageText = fmt.Sprintf("White Wins! Black: %d, White: %d", blackCount, whiteCount)
 	}
-	messageText += "\nPress Space to Restart"
+	messageText += GameOverText
 
 	// Get screen dimensions to center the overlay
 	screenSize := screen.Bounds().Size()
