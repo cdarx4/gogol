@@ -29,6 +29,15 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
+// MaxPassCount is the number of consecutive passes to end the game.
+const MaxPassCount = 2
+
+// DefaultScreenWidth is the default width of the game window.
+const DefaultScreenWidth = 600
+
+// DefaultScreenHeight is the default height of the game window.
+const DefaultScreenHeight = 600
+
 // Init initializes the game to its starting state.
 // Preserves the bot if it was already set (for game restarts).
 func (g *Game) Init() {
@@ -59,18 +68,22 @@ func (g *Game) Update() error {
 			g.handlePlayerInput()
 		}
 
-		if g.Board.PassCount == 2 {
+		// End game if players pass 2 times
+		if g.Board.PassCount == MaxPassCount {
 			g.State = GameStateEnd
 		}
+
 		return nil
 	}
 
+	// Restart game if space is pressed
 	if g.State == GameStateEnd {
 		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 			g.State = GameStateIntro
 			g.Init()
 		}
 	}
+
 	return nil
 }
 
@@ -86,7 +99,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	if g.Renderer != nil {
 		return g.Renderer.Layout(outsideWidth, outsideHeight)
 	}
-	return 600, 600
+	return DefaultScreenWidth, DefaultScreenHeight
 }
 
 // SetBot sets the AI bot for the game.
@@ -96,20 +109,21 @@ func (g *Game) SetBot(bot AIPlayer) {
 
 // handleIntroState processes input while the game is in the intro state.
 func (g *Game) handleIntroState() error {
+	// Enter PVP mode when pressing the P key or mouse
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
 		g.Mode = GameModePvP
 		g.State = GameStateGame
 		return nil
 	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyB) {
-		g.Mode = GameModePvE
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		g.Mode = GameModePvP
 		g.State = GameStateGame
 		return nil
 	}
 
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		g.Mode = GameModePvP
+	// Enter Bot mode on B key press
+	if inpututil.IsKeyJustPressed(ebiten.KeyB) {
+		g.Mode = GameModePvE
 		g.State = GameStateGame
 		return nil
 	}
@@ -130,17 +144,20 @@ func (g *Game) handleBotResult() {
 
 // processBotMove processes a completed bot move result.
 func (g *Game) processBotMove(botMoveResult BotMoveResult) {
+	// Pass if bot made an error
 	if botMoveResult.Err != nil {
 		fmt.Println("Bot error:", botMoveResult.Err, "- passing instead")
 		g.handlePass()
 		return
 	}
 
+	// Pass if bot suggests a pass
 	if botMoveResult.Pass {
 		g.handlePass()
 		return
 	}
 
+	// Place stone where bot suggested
 	if g.Board.PlaceStone(botMoveResult.X, botMoveResult.Y) {
 		g.checkGameEnd()
 		return
@@ -153,21 +170,25 @@ func (g *Game) processBotMove(botMoveResult BotMoveResult) {
 
 // handlePlayerInput processes player input during gameplay.
 func (g *Game) handlePlayerInput() {
+	// Pass if S key is pressed
 	if inpututil.IsKeyJustPressed(ebiten.KeyS) {
 		g.handlePass()
 		return
 	}
 
+	// Do nothing if it's not a left mouse button click
 	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return
 	}
 
+	// Get position where user clicked
 	cursorX, cursorY := ebiten.CursorPosition()
 	gridX, gridY, onBoard := g.Renderer.GetGridPosition(cursorX, cursorY)
 	if !onBoard {
 		return
 	}
 
+	// Place stone on user click
 	if g.Board.PlaceStone(gridX, gridY) {
 		g.checkGameEnd()
 	}
@@ -188,7 +209,7 @@ func (g *Game) handleBotTurn() {
 	g.IsBotThinking = true
 	go func() {
 		moveX, moveY, err := g.Bot.NextMove(g.Board, PlayerWhite)
-		isPassMove := (moveX == -1 && moveY == -1)
+		isPassMove := (moveX == PassMoveCoordinate && moveY == PassMoveCoordinate)
 		g.BotMoveChan <- BotMoveResult{X: moveX, Y: moveY, Pass: isPassMove, Err: err}
 	}()
 }

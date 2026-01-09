@@ -31,6 +31,9 @@ const (
 	BlackCellValue = 1
 	// WhiteCellValue represents a white stone in the simulated grid.
 	WhiteCellValue = 2
+
+	// PassMoveCoordinate represents the coordinate used for a pass move.
+	PassMoveCoordinate = -1
 )
 
 // SimulatedGrid represents a simplified board state for Ko checking
@@ -259,10 +262,9 @@ func (b *Board) captureOpponentGroupsInSimulation(simulatedGrid SimulatedGrid, x
 	}
 
 	// Check all four neighbors to see if any opponent groups got captured
-	directions := [][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
-	for _, direction := range directions {
-		xDelta := direction[0]
-		yDelta := direction[1]
+	for _, direction := range AdjacentDirections {
+		xDelta := direction.DeltaX
+		yDelta := direction.DeltaY
 		neighborX := x + xDelta
 		neighborY := y + yDelta
 		b.checkAndRemoveCapturedGroup(simulatedGrid, neighborX, neighborY, opponentValue)
@@ -287,7 +289,6 @@ func (b *Board) checkAndRemoveCapturedGroup(simulatedGrid SimulatedGrid, startX,
 	visited := map[[2]int]bool{{startX, startY}: true}
 	hasLiberties := false
 	queueHead := 0
-	directions := [][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
 
 	// Explore all connected stones using breadth-first search
 	for queueHead < len(queue) {
@@ -297,9 +298,9 @@ func (b *Board) checkAndRemoveCapturedGroup(simulatedGrid SimulatedGrid, startX,
 		currentX, currentY := currentPosition[0], currentPosition[1]
 
 		// Check all four adjacent neighbors
-		for _, direction := range directions {
-			xDelta := direction[0]
-			yDelta := direction[1]
+		for _, direction := range AdjacentDirections {
+			xDelta := direction.DeltaX
+			yDelta := direction.DeltaY
 			neighborX := currentX + xDelta
 			neighborY := currentY + yDelta
 
@@ -576,7 +577,7 @@ func (b *Board) GetLegalMoves(player Player) [][2]int {
 	moves := make([][2]int, 0)
 
 	// Passing is always a legal move
-	moves = append(moves, [2]int{-1, -1})
+	moves = append(moves, [2]int{PassMoveCoordinate, PassMoveCoordinate})
 
 	// Check every position on the board
 	for x := 0; x < b.Size; x++ {
@@ -601,7 +602,7 @@ func (b *Board) CloneAndPlay(x, y int, player Player) (*Board, bool) {
 	cloned := b.Clone()
 
 	// Handle pass moves
-	if x == -1 && y == -1 {
+	if x == PassMoveCoordinate && y == PassMoveCoordinate {
 		cloned.Pass()
 		return cloned, true
 	}

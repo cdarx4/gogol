@@ -125,6 +125,7 @@ type Direction struct {
 	DeltaX, DeltaY int
 }
 
+// Defining all the directions possible to form a group
 var AdjacentDirections = []Direction{
 	{-1, 0}, {1, 0}, {0, -1}, {0, 1},
 }
