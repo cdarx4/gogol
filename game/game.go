@@ -29,6 +29,15 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
+// MaxPassCount is the number of consecutive passes to end the game.
+const MaxPassCount = 2
+
+// DefaultScreenWidth is the default width of the game window.
+const DefaultScreenWidth = 600
+
+// DefaultScreenHeight is the default height of the game window.
+const DefaultScreenHeight = 600
+
 // Init initializes the game to its starting state.
 // Preserves the bot if it was already set (for game restarts).
 func (g *Game) Init() {
@@ -60,7 +69,7 @@ func (g *Game) Update() error {
 		}
 
 		// End game if players pass 2 times
-		if g.Board.PassCount == 2 {
+		if g.Board.PassCount == MaxPassCount {
 			g.State = GameStateEnd
 		}
 
@@ -90,7 +99,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	if g.Renderer != nil {
 		return g.Renderer.Layout(outsideWidth, outsideHeight)
 	}
-	return 600, 600
+	return DefaultScreenWidth, DefaultScreenHeight
 }
 
 // SetBot sets the AI bot for the game.
@@ -200,7 +209,7 @@ func (g *Game) handleBotTurn() {
 	g.IsBotThinking = true
 	go func() {
 		moveX, moveY, err := g.Bot.NextMove(g.Board, PlayerWhite)
-		isPassMove := (moveX == -1 && moveY == -1)
+		isPassMove := (moveX == PassMoveCoordinate && moveY == PassMoveCoordinate)
 		g.BotMoveChan <- BotMoveResult{X: moveX, Y: moveY, Pass: isPassMove, Err: err}
 	}()
 }
