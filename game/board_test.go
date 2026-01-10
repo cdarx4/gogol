@@ -483,6 +483,39 @@ func TestBoard_GetLegalMoves_ExcludesSuicide(t *testing.T) {
 	}
 }
 
+func TestBoard_GetLegalMoves_ExcludesKo(t *testing.T) {
+	b := NewBoard(9)
+
+	// Create a Ko situation similar to TestKo_SimpleKoRejected
+	moves := [][2]int{
+		{2, 1},
+		{1, 3},
+		{1, 2},
+		{3, 3},
+		{3, 2},
+		{2, 4},
+		{0, 0},
+		{2, 2},
+	}
+
+	for i, m := range moves {
+		if ok := b.PlaceStone(m[0], m[1]); !ok {
+			t.Fatalf("move %d at (%d,%d) failed", i, m[0], m[1])
+		}
+	}
+
+	// Capture the stone at (2,2) by playing at (2,3)
+	mustPlace(t, b, 2, 3)
+
+	// Now (2,2) should be a Ko violation and not in legal moves
+	legalMoves := b.GetLegalMoves(PlayerWhite)
+	for _, move := range legalMoves {
+		if move[0] == 2 && move[1] == 2 {
+			t.Error("GetLegalMoves should not include Ko move (2,2)")
+		}
+	}
+}
+
 func TestBoard_GetLegalMoves_ReturnsValidMoves(t *testing.T) {
 	b := NewBoard(9)
 	moves := b.GetLegalMoves(PlayerBlack)

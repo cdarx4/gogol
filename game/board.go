@@ -618,13 +618,9 @@ func (b *Board) GetLegalMoves(player Player) [][2]int {
 
 	for x := 0; x < b.Size; x++ {
 		for y := 0; y < b.Size; y++ {
-			if b.isOccupied(x, y) {
-				continue
+			if b.isLegalPlacement(x, y, player) {
+				moves = append(moves, [2]int{x, y})
 			}
-			if b.isSuicide(x, y, player) {
-				continue
-			}
-			moves = append(moves, [2]int{x, y})
 		}
 	}
 
