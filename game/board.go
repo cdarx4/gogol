@@ -80,7 +80,7 @@ func (b *Board) isLegalPlacement(x, y int, player Player) bool {
 	if b.isSuicide(x, y, player) {
 		return false
 	}
-	if b.isKo(x, y, player) {
+	if b.isSuperKo(x, y, player) {
 		return false
 	}
 	return true
@@ -240,8 +240,8 @@ func (b *Board) directLibertiesAround(x, y int) map[[2]int]struct{} {
 
 // ---------- Ko Check ----------
 
-// isKo reports whether the move would violate the Ko rule (Positional Superko).
-func (b *Board) isKo(x, y int, player Player) bool {
+// isSuperKo reports whether the move would violate the Superko rule.
+func (b *Board) isSuperKo(x, y int, player Player) bool {
 	nextState := b.simulateNextState(x, y, player)
 	return slices.Contains(b.History, nextState)
 }
